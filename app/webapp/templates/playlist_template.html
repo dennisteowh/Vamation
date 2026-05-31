@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{post_name}} - Playlist View</title>
+    <link rel="stylesheet" href="/styles/main.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background: linear-gradient(180deg, #0a0a0a 0%, #1a1a1a 100%);
+            background-attachment: fixed;
+            background-size: 100% 100vh;
+            min-height: 100vh;
+            color: #ffffff;
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+        }
+        
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(180deg, #0a0a0a 0%, #1a1a1a 100%);
+            z-index: -1;
+        }
+
+        /* Header - Match Main Page */
+        .header {
+            background: rgba(10, 10, 10, 0.95);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(212, 175, 55, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+        }
+
+        .header-content {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 1rem 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1.5rem;
+        }
+
+        .app-title {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #d4af37, #ffd700);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: none;
+            margin: 0;
+        }
+
+        .app-title a {
+            text-decoration: none;
+            color: inherit;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .app-title i {
+            color: #d4af37;
+        }
+
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #b8b8b8;
+            font-size: 0.9rem;
+        }
+
+        .breadcrumb a {
+            color: #ffd700;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .breadcrumb a:hover {
+            color: #d4af37;
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+        }
+
+        .control-btn {
+            height: 40px;
+            padding: 0 1.5rem;
+            background: rgba(10, 10, 10, 0.8);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            color: #ffd700;
+            font-weight: 600;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            text-decoration: none;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4),
+                        inset 0 1px 0 rgba(212, 175, 55, 0.1);
+        }
+
+        .control-btn:hover {
+            background: rgba(15, 15, 15, 0.9);
+            border-color: #d4af37;
+            box-shadow: 0 4px 12px rgba(212, 175, 55, 0.3),
+                        inset 0 1px 0 rgba(212, 175, 55, 0.2);
+            transform: translateY(-1px);
+        }
+
+        /* Image Size Slider */
+        .size-slider-container {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .size-slider-container i {
+            color: #d4af37;
+            font-size: 0.9rem;
+        }
+
+        .size-slider {
+            width: 120px;
+            height: 6px;
+            background: rgba(212, 175, 55, 0.2);
+            border-radius: 3px;
+            outline: none;
+            cursor: pointer;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        .size-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            background: linear-gradient(135deg, #d4af37, #ffd700);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(212, 175, 55, 0.4);
+            transition: all 0.2s ease;
+        }
+
+        .size-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            box-shadow: 0 4px 12px rgba(212, 175, 55, 0.6);
+        }
+
+        .size-slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            background: linear-gradient(135deg, #d4af37, #ffd700);
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(212, 175, 55, 0.4);
+            transition: all 0.2s ease;
+        }
+
+        .size-slider::-moz-range-thumb:hover {
+            transform: scale(1.2);
+            box-shadow: 0 4px 12px rgba(212, 175, 55, 0.6);
+        }
+
+        /* Image Viewer Container */
+        .image-viewer {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: calc(100vh - 80px);
+            padding: 2rem;
+            position: relative;
+        }
+
+        .image-container {
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            width: 100%;
+            max-width: 1800px;
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        #currentImage {
+            max-width: 100%;
+            max-height: calc(100vh - 100px);
+            width: auto;
+            height: auto;
+            object-fit: contain;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8),
+                        0 0 40px rgba(212, 175, 55, 0.2);
+            transition: opacity 0.3s ease;
+            transform-origin: top center;
+            cursor: none;
+            position: relative;
+        }
+
+        /* Custom Cursor Overlay */
+        .custom-cursor {
+            position: fixed;
+            width: 48px;
+            height: 48px;
+            pointer-events: none;
+            z-index: 10000;
+            transform: translate(-50%, -50%);
+            transition: opacity 0.2s ease;
+            opacity: 0;
+        }
+
+        .custom-cursor img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5)) 
+                    brightness(0.7) 
+                    contrast(1.5) 
+                    saturate(1.3);
+        }
+
+        .custom-cursor.flip {
+            transform: translate(-50%, -50%) scaleX(-1);
+        }
+
+        /* Navigation Buttons - Hidden, using click zones instead */
+        .nav-btn {
+            display: none;
+        }
+
+        /* Image Counter */
+        .image-counter {
+            position: fixed;
+            top: 100px;
+            left: 2rem;
+            background: rgba(10, 10, 10, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            padding: 0.75rem 1.25rem;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #ffd700;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6),
+                        inset 0 1px 0 rgba(212, 175, 55, 0.1);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 99;
+            min-width: 120px;
+            text-align: center;
+        }
+
+        body:hover .image-counter {
+            opacity: 1;
+        }
+
+        /* Keyboard Hints - Hidden */
+        .keyboard-hints {
+            display: none;
+        }
+
+        .keyboard-hint {
+            display: none;
+        }
+
+        .key {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .header-content {
+                flex-wrap: wrap;
+            }
+
+            .image-viewer {
+                padding: 1rem;
+            }
+
+            .nav-btn {
+                width: 40px;
+                height: 40px;
+                font-size: 1rem;
+            }
+
+            .prev-btn {
+                left: 1rem;
+            }
+
+            .next-btn {
+                right: 1rem;
+            }
+
+            .image-counter {
+                bottom: 1rem;
+                padding: 0.5rem 1rem;
+                font-size: 0.8rem;
+            }
+
+            .keyboard-hints {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div style="display: flex; align-items: center; gap: 1.5rem;">
+                <h1 class="app-title">
+                    <a href="/">
+                        <i class="fas fa-images"></i>
+                        VAMA Gallery
+                    </a>
+                </h1>
+                <div class="breadcrumb">
+                    <span>{{post_name}}</span>
+                </div>
+            </div>
+            <div class="header-controls">
+                <div class="size-slider-container">
+                    <i class="fas fa-search-minus"></i>
+                    <input type="range" id="sizeSlider" class="size-slider" min="50" max="300" value="100" step="10">
+                    <i class="fas fa-search-plus"></i>
+                </div>
+                <a href="/playlists/{{post_id}}_cascade.html" class="control-btn">
+                    <i class="fas fa-th"></i> Cascade View
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Image Viewer -->
+    <div class="image-viewer">
+        <div class="image-container">
+            <button class="nav-btn prev-btn" id="prevImage">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+            
+            <img id="currentImage" src="" alt="Current image">
+            
+            <button class="nav-btn next-btn" id="nextImage">
+                <i class="fas fa-chevron-right"></i>
+            </button>
+        </div>
+
+        <div class="image-counter" id="imageCounter">
+            1 / {{total_images}}
+        </div>
+    </div>
+
+    <!-- Custom Cursor -->
+    <div class="custom-cursor" id="customCursor">
+        <img src="/styles/cupid_arrow.png" alt="cursor">
+    </div>
+
+    <script>
+        const POST_DATA = {
+            post_id: '{{post_id}}',
+            post_name: '{{post_name}}',
+            total_images: {{total_images}},
+            images: {{images_json}}
+        };
+
+        const postId = POST_DATA.post_id;
+        let currentImageIndex = 0;
+        const images = POST_DATA.images;
+        let imageScale = 1.0; // Default scale
+        
+        // Initialize size slider
+        const sizeSlider = document.getElementById('sizeSlider');
+        const currentImageEl = document.getElementById('currentImage');
+        
+        // Restore slider value from sessionStorage (persists during session, resets on refresh)
+        const savedScale = sessionStorage.getItem('imageScale');
+        if (savedScale) {
+            sizeSlider.value = savedScale;
+            imageScale = parseFloat(savedScale) / 100;
+        }
+        
+        // Handle slider changes
+        sizeSlider.addEventListener('input', function() {
+            imageScale = this.value / 100;
+            sessionStorage.setItem('imageScale', this.value);
+            applyImageScale();
+        });
+        
+        function applyImageScale() {
+            currentImageEl.style.transform = `scale(${imageScale})`;
+            currentImageEl.style.transformOrigin = 'top center';
+        }
+        
+        // Click navigation on image (left side = previous, right side = next)
+        currentImageEl.addEventListener('click', function(e) {
+            const rect = this.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const imageWidth = rect.width;
+            
+            // If clicked on left half, go to previous; if right half, go to next
+            if (clickX < imageWidth / 2) {
+                if (currentImageIndex > 0) {
+                    currentImageIndex--;
+                    updateImage();
+                }
+            } else {
+                if (currentImageIndex < images.length - 1) {
+                    currentImageIndex++;
+                    updateImage();
+                }
+            }
+        });
+        
+        // Custom cursor tracking
+        const customCursor = document.getElementById('customCursor');
+        let isOverImage = false;
+        
+        // Update cursor based on hover position
+        currentImageEl.addEventListener('mousemove', function(e) {
+            const rect = this.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const imageWidth = rect.width;
+            
+            // Update cursor position
+            customCursor.style.left = e.clientX + 'px';
+            customCursor.style.top = e.clientY + 'px';
+            customCursor.style.opacity = '1';
+            isOverImage = true;
+            
+            // Flip cursor based on position
+            if (clickX < imageWidth / 2) {
+                // Left side - normal arrow
+                customCursor.classList.remove('flip');
+                if (currentImageIndex === 0) {
+                    customCursor.style.opacity = '0.3';
+                }
+            } else {
+                // Right side - flipped arrow
+                customCursor.classList.add('flip');
+                if (currentImageIndex === images.length - 1) {
+                    customCursor.style.opacity = '0.3';
+                }
+            }
+        });
+        
+        // Hide cursor when leaving image
+        currentImageEl.addEventListener('mouseleave', function() {
+            customCursor.style.opacity = '0';
+            isOverImage = false;
+        });
+        
+        // Show cursor when entering image
+        currentImageEl.addEventListener('mouseenter', function() {
+            isOverImage = true;
+        });
+        
+        // Update cursor on general mouse move
+        document.addEventListener('mousemove', function(e) {
+            if (isOverImage) {
+                customCursor.style.left = e.clientX + 'px';
+                customCursor.style.top = e.clientY + 'px';
+            }
+        });
+        
+        // Check URL parameters for direct image navigation
+        const urlParams = new URLSearchParams(window.location.search);
+        const imageParam = urlParams.get('image');
+        if (imageParam !== null) {
+            const isPureNumber = /^\d+$/.test(imageParam);
+            
+            if (isPureNumber) {
+                const imageIndex = parseInt(imageParam);
+                if (imageIndex >= 0 && imageIndex < images.length) {
+                    currentImageIndex = imageIndex;
+                }
+            } else {
+                const foundIndex = images.findIndex(img => img.filename === imageParam);
+                if (foundIndex >= 0) {
+                    currentImageIndex = foundIndex;
+                } else {
+                    currentImageIndex = 0;
+                }
+            }
+        }
+        
+        function updateImage() {
+            if (images.length === 0) return;
+
+            const currentImage = images[currentImageIndex];
+            const imgElement = document.getElementById('currentImage');
+            const counterElement = document.getElementById('imageCounter');
+            const prevBtn = document.getElementById('prevImage');
+            const nextBtn = document.getElementById('nextImage');
+
+            // For playlists, use currentImage.post_id; for posts, use postId
+            const imagePostId = currentImage.post_id || postId;
+            const imageUrl = `/api/images/content/${imagePostId}/${currentImage.filename}`;
+            imgElement.src = imageUrl;
+            imgElement.alt = currentImage.filename;
+            counterElement.textContent = `${currentImageIndex + 1} / ${images.length}`;
+            
+            // Apply current scale to new image
+            applyImageScale();
+            
+            // Disable buttons at boundaries
+            prevBtn.disabled = currentImageIndex === 0;
+            nextBtn.disabled = currentImageIndex === images.length - 1;
+            
+            // Update URL parameter without page reload
+            const newUrl = new URL(window.location);
+            newUrl.searchParams.set('image', currentImageIndex);
+            window.history.replaceState({}, '', newUrl);
+        }
+
+        document.getElementById('prevImage').addEventListener('click', () => {
+            if (currentImageIndex > 0) {
+                currentImageIndex--;
+                updateImage();
+            }
+        });
+        
+        document.getElementById('nextImage').addEventListener('click', () => {
+            if (currentImageIndex < images.length - 1) {
+                currentImageIndex++;
+                updateImage();
+            }
+        });
+        
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            switch(e.key) {
+                case 'ArrowLeft':
+                    if (currentImageIndex > 0) {
+                        document.getElementById('prevImage').click();
+                    }
+                    break;
+                case 'ArrowRight':
+                    if (currentImageIndex < images.length - 1) {
+                        document.getElementById('nextImage').click();
+                    }
+                    break;
+            }
+        });
+        
+        // Initialize
+        if (images.length > 0) {
+            updateImage();
+        }
+    </script>
+</body>
+</html>

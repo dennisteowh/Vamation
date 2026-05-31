@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{post_name}} - Cascade View</title>
+    <link rel="stylesheet" href="/styles/main.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            background: linear-gradient(180deg, #0a0a0a 0%, #1a1a1a 100%);
+            color: #ffffff;
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Header - Match Main Page */
+        .header {
+            background: rgba(10, 10, 10, 0.95);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(212, 175, 55, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+        }
+
+        .header-content {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 1rem 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        .app-title {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #d4af37, #ffd700);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: none;
+            margin: 0;
+        }
+
+        .app-title a {
+            text-decoration: none;
+            color: inherit;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .app-title i {
+            color: #d4af37;
+        }
+
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #b8b8b8;
+            font-size: 0.9rem;
+        }
+
+        .breadcrumb a {
+            color: #ffd700;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .breadcrumb a:hover {
+            color: #d4af37;
+        }
+
+        .cascade-view {
+            padding: 2rem;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .cascade-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            background: linear-gradient(145deg, #1f1f1f, #1a1a1a);
+            border-radius: 16px;
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8),
+                        inset 0 1px 1px rgba(255, 215, 0, 0.2);
+        }
+
+        .header-left h2 {
+            margin: 0;
+            color: #ffffff;
+            font-size: 1.5rem;
+            font-weight: 600;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+        }
+
+        .cascade-controls {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .size-control {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            background: rgba(10, 10, 10, 0.6);
+            padding: 0.5rem 1rem;
+            border-radius: 10px;
+            border: 1px solid rgba(212, 175, 55, 0.2);
+        }
+
+        .size-control label {
+            font-size: 0.875rem;
+            color: #b8b8b8;
+            font-weight: 500;
+        }
+
+        .size-slider {
+            width: 120px;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(212, 175, 55, 0.3);
+            outline: none;
+            cursor: pointer;
+        }
+
+        .size-slider::-webkit-slider-thumb {
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            background: linear-gradient(135deg, #d4af37, #ffd700);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(212, 175, 55, 0.5);
+        }
+
+        .size-slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            background: linear-gradient(135deg, #d4af37, #ffd700);
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 8px rgba(212, 175, 55, 0.5);
+        }
+
+        /* Buttons - Match Main Page Style */
+        .control-btn {
+            height: 40px;
+            padding: 0 1.5rem;
+            background: rgba(10, 10, 10, 0.8);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            color: #ffd700;
+            font-weight: 600;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            min-width: 140px;
+            justify-content: center;
+            text-decoration: none;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4),
+                        inset 0 1px 0 rgba(212, 175, 55, 0.1);
+        }
+
+        .control-btn:hover {
+            background: rgba(15, 15, 15, 0.9);
+            border-color: #d4af37;
+            box-shadow: 0 4px 12px rgba(212, 175, 55, 0.3),
+                        inset 0 1px 0 rgba(212, 175, 55, 0.2);
+            transform: translateY(-1px);
+        }
+
+        .control-btn.edit-mode-active {
+            background: linear-gradient(135deg, #d4af37, #ffd700);
+            color: #000000;
+            border-color: #ffd700;
+            font-weight: 700;
+            box-shadow: 0 4px 12px rgba(212, 175, 55, 0.5),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        }
+
+        .control-btn.edit-mode-active:hover {
+            background: linear-gradient(135deg, #c5a028, #d4af37);
+        }
+
+        .save-controls {
+            display: none;
+            gap: 0.75rem;
+        }
+
+        .save-controls.show {
+            display: flex;
+        }
+
+        .control-btn.save {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: #ffffff;
+            border-color: #28a745;
+            min-width: 120px;
+        }
+
+        .control-btn.save:hover {
+            background: linear-gradient(135deg, #218838, #1aa179);
+            box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4);
+        }
+
+        .control-btn.cancel {
+            background: rgba(108, 117, 125, 0.8);
+            color: #ffffff;
+            border-color: #6c757d;
+            min-width: 120px;
+        }
+
+        .control-btn.cancel:hover {
+            background: rgba(90, 98, 104, 0.9);
+            box-shadow: 0 4px 12px rgba(108, 117, 125, 0.4);
+        }
+
+        .cascade-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(var(--image-size, 220px), 1fr));
+            gap: 1.5rem;
+            padding: 1rem 0;
+        }
+
+        .cascade-item {
+            position: relative;
+            border-radius: 16px;
+            overflow: hidden;
+            background: linear-gradient(145deg, #1f1f1f, #1a1a1a);
+            border: 3px solid transparent;
+            background-image: 
+                linear-gradient(145deg, #1f1f1f, #1a1a1a),
+                linear-gradient(135deg, 
+                    #9b8335 0%,
+                    #c5a028 15%,
+                    #d4af37 30%,
+                    #ffd700 50%,
+                    #d4af37 70%,
+                    #c5a028 85%,
+                    #9b8335 100%
+                );
+            background-origin: border-box;
+            background-clip: padding-box, border-box;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8),
+                        inset 0 1px 1px rgba(255, 215, 0, 0.2),
+                        0 0 20px rgba(255, 215, 0, 0.3);
+            pointer-events: all !important;
+        }
+
+        .cascade-item:hover {
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.9),
+                        inset 0 2px 2px rgba(255, 215, 0, 0.4),
+                        0 0 40px rgba(255, 215, 0, 0.5),
+                        0 0 60px rgba(212, 175, 55, 0.3);
+            border-width: 4px;
+        }
+
+        .cascade-item img {
+            width: 100%;
+            height: auto;
+            display: block;
+            transition: transform 0.3s ease;
+            pointer-events: none !important;
+        }
+
+        .cascade-item:hover img {
+            transform: scale(1.02);
+        }
+
+        /* Edit Mode Styles */
+        .cascade-item.edit-mode {
+            cursor: grab;
+        }
+
+        .cascade-item.edit-mode:active {
+            cursor: grabbing;
+        }
+
+        .cascade-item.dragging {
+            opacity: 0.5;
+            transform: rotate(2deg) scale(0.95);
+            z-index: 1000;
+        }
+
+        .cascade-item.drag-over {
+            border-color: #28a745;
+            transform: scale(0.98);
+        }
+
+        .cascade-item.image-hidden {
+            opacity: 0.3 !important;
+            filter: grayscale(70%) !important;
+            display: block !important;
+            visibility: visible !important;
+        }
+
+        .edit-badge {
+            position: absolute;
+            bottom: 12px;
+            left: 12px;
+            background: rgba(0, 0, 0, 0.9);
+            color: #ffd700;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.3s ease;
+            pointer-events: none !important;
+            border: 1px solid rgba(212, 175, 55, 0.3);
+        }
+
+        .cascade-item.edit-mode:hover .edit-badge {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .edit-controls {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            display: flex;
+            gap: 6px;
+            opacity: 1;
+            transform: translateY(0);
+            transition: all 0.3s ease;
+            pointer-events: auto !important;
+        }
+
+        .cascade-item.edit-mode .edit-controls {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .edit-btn {
+            width: 32px;
+            height: 32px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+        }
+
+        .visibility-btn.hide-state {
+            background: rgba(40, 167, 69, 0.9);
+            color: white;
+        }
+
+        .visibility-btn.show-state {
+            background: rgba(108, 117, 125, 0.9);
+            color: white;
+        }
+
+        .delete-btn {
+            background: rgba(220, 53, 69, 0.9);
+            color: white;
+        }
+
+        .edit-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+        }
+        
+        .playlist-add-btn {
+            background: rgba(139, 115, 85, 0.9);
+            color: white;
+        }
+
+        .playlist-add-btn:hover {
+            background: rgba(160, 132, 102, 0.95);
+            transform: scale(1.1);
+        }
+
+        /* Playlist Selector Dropdown */
+        .playlist-selector {
+            position: relative;
+            display: inline-block;
+        }
+
+        .playlist-selector-btn {
+            min-width: 200px;
+            justify-content: space-between;
+        }
+
+        .playlist-selector-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            margin-top: 0.5rem;
+            background: rgba(10, 10, 10, 0.98);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            border-radius: 10px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8);
+            min-width: 250px;
+            max-height: 400px;
+            overflow-y: auto;
+            z-index: 1001;
+            display: none;
+        }
+
+        .playlist-selector-dropdown.show {
+            display: block;
+        }
+
+        .playlist-option {
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-bottom: 1px solid rgba(212, 175, 55, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #fff;
+        }
+
+        .playlist-option:hover {
+            background: rgba(212, 175, 55, 0.2);
+        }
+
+        .playlist-option.selected {
+            background: rgba(212, 175, 55, 0.3);
+            font-weight: 600;
+        }
+
+        .playlist-option .icon {
+            font-size: 1.1rem;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 5rem;
+            color: #b8b8b8;
+        }
+
+        .loading i {
+            font-size: 2.5rem;
+            animation: spin 1s linear infinite;
+            margin-bottom: 1.5rem;
+            color: #d4af37;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .image-number {
+            position: absolute;
+            bottom: 8px;
+            left: 8px;
+            background: rgba(0, 0, 0, 0.85);
+            color: #ffd700;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        @media (max-width: 768px) {
+            .cascade-controls {
+                flex-direction: column;
+                gap: 0.75rem;
+            }
+            
+            .cascade-grid {
+                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+                gap: 1rem;
+            }
+
+            .header-content {
+                flex-direction: column;
+                gap: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <h1 class="app-title">
+                <a href="/">
+                    <i class="fas fa-images"></i>
+                    VAMA Gallery
+                </a>
+            </h1>
+            <div class="breadcrumb">
+                <span>{{post_name}}</span>
+                <span>/</span>
+                <span>Cascade View</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-container cascade-view">
+        <div class="cascade-header">
+            <div class="header-left">
+                <h2>{{post_name}}</h2>
+            </div>
+            <div class="cascade-controls">
+                <div class="size-control">
+                    <label for="imageSizeSlider">Size:</label>
+                    <input type="range" id="imageSizeSlider" min="150" max="400" value="220" class="size-slider">
+                </div>
+                <a href="/posts/{{post_id}}.html" class="control-btn">
+                    <i class="fas fa-image"></i> Single View
+                </a>
+                <button id="editModeBtn" class="control-btn">
+                    <i class="fas fa-edit"></i>
+                    <span id="editModeText">Edit Mode</span>
+                </button>
+                <!-- Playlist Selector -->
+                <div class="playlist-selector" id="playlistSelector" style="display: none;">
+                    <button class="playlist-selector-btn control-btn" id="playlistSelectorBtn">
+                        <i class="fas fa-list"></i>
+                        <span id="selectedPlaylistName">Select Playlist</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                    <div class="playlist-selector-dropdown" id="playlistDropdown">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+                <div class="save-controls" id="saveControls">
+                    <button id="saveChanges" class="control-btn save">
+                        <i class="fas fa-save"></i> Save
+                    </button>
+                    <button id="cancelEdit" class="control-btn cancel">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="loadingIndicator" class="loading">
+            <div><i class="fas fa-spinner"></i></div>
+            <p>Loading beautiful cascade...</p>
+        </div>
+
+        <div class="cascade-grid" id="cascadeGrid" style="display: none;">
+            <!-- Images will be populated here -->
+        </div>
+    </main>
+
+    <script>
+        let images = {{images_json}};
+        const postId = '{{post_id}}';
+        let editMode = false;
+        let hasChanges = false;
+        let originalOrder = [...images];
+        let draggedElement = null;
+        let draggedIndex = null;
+
+        function createImageItem(image, index) {
+            const item = document.createElement('div');
+            item.className = 'cascade-item';
+            item.dataset.index = index;
+            item.dataset.filename = image.filename;
+
+            const isVisible = image.visible === undefined ? true : image.visible;
+            const visibilityClass = isVisible ? 'hide-state' : 'show-state';
+            const visibilityIcon = isVisible ? 'eye-slash' : 'eye';
+            const visibilityTitle = isVisible ? 'Hide' : 'Show';
+
+            // Calculate display number (visible images only)
+            const displayNumber = images.filter((img, i) => 
+                i <= index && !img.deleted && (img.visible === undefined || img.visible)
+            ).length;
+
+            // For playlists, use image.post_id; for posts, use postId
+            const imagePostId = image.post_id || postId;
+            let htmlContent = `<img src="/api/images/content/${imagePostId}/${image.filename}" alt="${image.filename}">
+                <div class="image-number">#${displayNumber}</div>`;
+            
+            if (editMode) {
+                htmlContent += `
+                    <div class="edit-controls">
+                        <button class="edit-btn visibility-btn ${visibilityClass}" title="${visibilityTitle}" onclick="toggleVisibility('${image.filename}', this)">
+                            <i class="fas fa-${visibilityIcon}"></i>
+                        </button>
+                        <button class="edit-btn delete-btn" title="Delete" onclick="deleteImage('${image.filename}')">
+                            <i class="fas fa-trash"></i>
+                        </button>`;
+                
+                // Add "Add to Playlist" button if a playlist is selected
+                if (selectedPlaylistId) {
+                    htmlContent += `
+                        <button class="edit-btn playlist-add-btn" title="Add to ${selectedPlaylistName}" onclick="addImageToSelectedPlaylist('${image.filename}', event)">
+                            <i class="fas fa-plus"></i>
+                        </button>`;
+                }
+                
+                htmlContent += `
+                    </div>
+                    <div class="edit-badge">
+                        <i class="fas fa-grip-vertical"></i> Drag to reorder
+                    </div>`;
+            }
+            
+            item.innerHTML = htmlContent;
+
+            if (editMode && !isVisible) {
+                item.classList.add('image-hidden');
+            }
+
+            item.addEventListener('click', function(e) {
+                if (editMode) {
+                    if (e.target.closest('.edit-btn')) {
+                        return;
+                    }
+                }
+                window.open(`/posts/${postId}.html?image=${image.filename}`, '_blank');
+            });
+
+            if (editMode) {
+                enableDragAndDrop(item, index);
+            }
+
+            return item;
+        }
+
+        function enableDragAndDrop(item, index) {
+            item.draggable = true;
+            
+            item.addEventListener('dragstart', function(e) {
+                draggedElement = this;
+                draggedIndex = parseInt(this.dataset.index);
+                this.classList.add('dragging');
+                e.dataTransfer.effectAllowed = 'move';
+            });
+            
+            item.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                this.classList.add('drag-over');
+            });
+            
+            item.addEventListener('dragleave', function() {
+                this.classList.remove('drag-over');
+            });
+            
+            item.addEventListener('drop', function(e) {
+                e.preventDefault();
+                this.classList.remove('drag-over');
+                
+                if (draggedElement !== this) {
+                    const dropIndex = parseInt(this.dataset.index);
+                    const draggedImage = images[draggedIndex];
+                    images.splice(draggedIndex, 1);
+                    images.splice(dropIndex, 0, draggedImage);
+                    hasChanges = true;
+                    renderGrid();
+                }
+            });
+            
+            item.addEventListener('dragend', function() {
+                this.classList.remove('dragging');
+                document.querySelectorAll('.cascade-item').forEach(item => {
+                    item.classList.remove('drag-over');
+                });
+                draggedElement = null;
+                draggedIndex = null;
+            });
+        }
+
+        function renderGrid() {
+            const grid = document.getElementById('cascadeGrid');
+            const loading = document.getElementById('loadingIndicator');
+
+            grid.innerHTML = '';
+
+            let imagesToShow;
+            if (editMode) {
+                imagesToShow = images.filter(img => !img.deleted);
+            } else {
+                imagesToShow = images.filter(img => !img.deleted && (img.visible === undefined || img.visible));
+            }
+
+            imagesToShow.forEach((image, displayIndex) => {
+                const actualIndex = images.indexOf(image);
+                const item = createImageItem(image, actualIndex);
+                grid.appendChild(item);
+            });
+
+            loading.style.display = 'none';
+            grid.style.display = 'grid';
+        }
+        
+        function toggleVisibility(filename, buttonElement) {
+            const image = images.find(img => img.filename === filename);
+            if (!image) return;
+            
+            image.visible = !image.visible;
+            hasChanges = true;
+            
+            const cascadeItem = buttonElement.closest('.cascade-item');
+            const icon = buttonElement.querySelector('i');
+            
+            if (image.visible) {
+                buttonElement.className = 'edit-btn visibility-btn hide-state';
+                buttonElement.title = 'Hide';
+                icon.className = 'fas fa-eye-slash';
+                cascadeItem.classList.remove('image-hidden');
+            } else {
+                buttonElement.className = 'edit-btn visibility-btn show-state';
+                buttonElement.title = 'Show';
+                icon.className = 'fas fa-eye';
+                cascadeItem.classList.add('image-hidden');
+            }
+        }
+
+        function deleteImage(filename) {
+            const imageIndex = images.findIndex(img => img.filename === filename);
+            if (imageIndex === -1) return;
+            
+            if (confirm(`Delete ${filename}?`)) {
+                images[imageIndex].deleted = true;
+                hasChanges = true;
+                renderGrid();
+            }
+        }
+
+        function toggleEditMode() {
+            editMode = !editMode;
+            const editBtn = document.getElementById('editModeBtn');
+            const editText = document.getElementById('editModeText');
+            const saveControls = document.getElementById('saveControls');
+            const playlistSelector = document.getElementById('playlistSelector');
+            
+            if (editMode) {
+                editBtn.classList.add('edit-mode-active');
+                editText.textContent = 'Exit Edit';
+                saveControls.classList.add('show');
+                playlistSelector.style.display = 'block';
+                populatePlaylistSelector();
+            } else {
+                if (hasChanges) {
+                    if (!confirm('You have unsaved changes. Are you sure you want to exit?')) {
+                        editMode = true;
+                        return;
+                    }
+                    images = [...originalOrder];
+                    hasChanges = false;
+                }
+                editBtn.classList.remove('edit-mode-active');
+                editText.textContent = 'Edit Mode';
+                saveControls.classList.remove('show');
+                playlistSelector.style.display = 'none';
+                selectedPlaylistId = null;
+                selectedPlaylistName = null;
+            }
+            
+            renderGrid();
+        }
+
+        async function saveChanges() {
+            if (!hasChanges) return;
+
+            const saveBtn = document.getElementById('saveChanges');
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+            try {
+                const response = await fetch(`/api/posts/${postId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        images: images
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert('Changes saved successfully!');
+                    originalOrder = [...images];
+                    hasChanges = false;
+                    editMode = false;
+                    toggleEditMode();
+                } else {
+                    alert('Error saving changes: ' + (result.error || result.message || 'Unknown error'));
+                }
+            } catch (error) {
+                alert('Error saving changes: ' + error.message);
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = '<i class="fas fa-save"></i> Save';
+            }
+        }
+
+        function cancelEdit() {
+            if (hasChanges && !confirm('Discard all changes?')) return;
+            images = [...originalOrder];
+            hasChanges = false;
+            editMode = false;
+            toggleEditMode();
+        }
+
+        document.getElementById('editModeBtn').addEventListener('click', toggleEditMode);
+        document.getElementById('saveChanges').addEventListener('click', saveChanges);
+        document.getElementById('cancelEdit').addEventListener('click', cancelEdit);
+        
+        document.getElementById('imageSizeSlider').addEventListener('input', function(e) {
+            const size = e.target.value + 'px';
+            document.getElementById('cascadeGrid').style.setProperty('--image-size', size);
+        });
+
+        
+        // Playlist selector state
+        let selectedPlaylistId = null;
+        let selectedPlaylistName = null;
+        let isAddingToPlaylist = false; // Guard against race conditions
+
+        // Populate playlist selector
+        async function populatePlaylistSelector() {
+            try {
+                const response = await fetch('/api/playlists');
+                if (!response.ok) {
+                    throw new Error('Failed to fetch playlists');
+                }
+                
+                const result = await response.json();
+                const playlists = result.playlists || [];
+                const dropdown = document.getElementById('playlistDropdown');
+                
+                if (!dropdown) return;
+                
+                if (playlists.length === 0) {
+                    dropdown.innerHTML = '<div class="playlist-option" style="opacity: 0.6; cursor: default;">No playlists yet</div>';
+                } else {
+                    dropdown.innerHTML = playlists.map(p => `
+                        <div class="playlist-option" data-playlist-id="${p.playlist_id}" data-playlist-name="${p.name}">
+                            <span class="icon">📋</span>
+                            <span>${p.name}</span>
+                        </div>
+                    `).join('');
+                    
+                    // Add click handlers
+                    dropdown.querySelectorAll('.playlist-option').forEach(option => {
+                        option.addEventListener('click', () => {
+                            const playlistId = option.dataset.playlistId;
+                            const playlistName = option.dataset.playlistName;
+                            selectPlaylist(playlistId, playlistName);
+                            dropdown.classList.remove('show');
+                        });
+                    });
+                }
+            } catch (error) {
+                console.error('Failed to populate playlist selector:', error);
+                const dropdown = document.getElementById('playlistDropdown');
+                if (dropdown) {
+                    dropdown.innerHTML = '<div class="playlist-option" style="opacity: 0.6; cursor: default; color: #ff6b6b;">Error loading playlists</div>';
+                }
+            }
+        }
+
+        // Select a playlist
+        function selectPlaylist(playlistId, playlistName) {
+            selectedPlaylistId = playlistId;
+            selectedPlaylistName = playlistName;
+            
+            const nameSpan = document.getElementById('selectedPlaylistName');
+            if (nameSpan) {
+                nameSpan.textContent = playlistName;
+            }
+            
+            // Highlight selected option
+            document.querySelectorAll('.playlist-option').forEach(opt => {
+                opt.classList.toggle('selected', opt.dataset.playlistId === playlistId);
+            });
+            
+            // Re-render grid to show add-to-playlist buttons on images
+            renderGrid();
+        }
+
+        // Add single image to selected playlist
+        async function addImageToSelectedPlaylist(filename, event) {
+            if (event) {
+                event.stopPropagation();
+            }
+            
+            if (!selectedPlaylistId) {
+                alert('Please select a playlist first');
+                return;
+            }
+            
+            // Guard against race condition
+            if (isAddingToPlaylist) {
+                console.log('Already adding image, please wait...');
+                return;
+            }
+            
+            isAddingToPlaylist = true;
+            
+            try {
+                const response = await fetch(`/api/playlists/${selectedPlaylistId}/images`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        images: [{
+                            post_id: postId,
+                            filename: filename
+                        }]
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to add image to playlist');
+                }
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Show success feedback
+                    showNotification(`Added ${filename} to ${selectedPlaylistName}`, 'success');
+                } else {
+                    throw new Error(result.error || 'Unknown error');
+                }
+            } catch (error) {
+                console.error('Failed to add image:', error);
+                alert(`Failed to add image: ${error.message}`);
+            } finally {
+                // Release lock after short delay to prevent rapid-fire clicks
+                setTimeout(() => {
+                    isAddingToPlaylist = false;
+                }, 300);
+            }
+        }
+        
+        // Simple notification system
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 100px;
+                right: 20px;
+                background: ${type === 'success' ? 'rgba(40, 167, 69, 0.95)' : 'rgba(220, 53, 69, 0.95)'};
+                color: white;
+                padding: 12px 20px;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                z-index: 10000;
+                font-weight: 600;
+                animation: slideIn 0.3s ease;
+            `;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => notification.remove(), 300);
+            }, 2000);
+        }
+        
+        // Add animation styles
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideIn {
+                from { transform: translateX(400px); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes slideOut {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(400px); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
+
+        // Toggle playlist dropdown
+        document.addEventListener('click', function(e) {
+            const dropdown = document.getElementById('playlistDropdown');
+            const selectorBtn = document.getElementById('playlistSelectorBtn');
+            
+            if (selectorBtn && selectorBtn.contains(e.target)) {
+                dropdown.classList.toggle('show');
+            } else if (dropdown && !dropdown.contains(e.target)) {
+                dropdown.classList.remove('show');
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', renderGrid);
+        renderGrid();
+    </script>
+</body>
+</html>

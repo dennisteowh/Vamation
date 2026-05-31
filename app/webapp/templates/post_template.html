@@ -1,0 +1,1999 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{post_name}} - VAMA Gallery</title>
+    <link rel="stylesheet" href="/styles/main.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background: linear-gradient(180deg, #0a0a0a 0%, #1a1a1a 100%);
+            background-attachment: fixed;
+            background-size: 100% 100vh;
+            min-height: 100vh;
+            color: #ffffff;
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+        }
+        
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(180deg, #0a0a0a 0%, #1a1a1a 100%);
+            z-index: -1;
+        }
+
+        /* Header - Match Main Page */
+        .header {
+            background: rgba(10, 10, 10, 0.95);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(212, 175, 55, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+        }
+
+        .header-content {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 1rem 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1.5rem;
+        }
+
+        .app-title {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #d4af37, #ffd700);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: none;
+            margin: 0;
+        }
+
+        .app-title a {
+            text-decoration: none;
+            color: inherit;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .app-title i {
+            color: #d4af37;
+        }
+
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #b8b8b8;
+            font-size: 0.9rem;
+        }
+
+        .breadcrumb a {
+            color: #ffd700;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .breadcrumb a:hover {
+            color: #d4af37;
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+        }
+
+        .control-btn {
+            height: 40px;
+            padding: 0 1.5rem;
+            background: rgba(10, 10, 10, 0.8);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            color: #ffd700;
+            font-weight: 600;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            text-decoration: none;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4),
+                        inset 0 1px 0 rgba(212, 175, 55, 0.1);
+        }
+
+        .control-btn:hover {
+            background: rgba(15, 15, 15, 0.9);
+            border-color: #d4af37;
+            box-shadow: 0 4px 12px rgba(212, 175, 55, 0.3),
+                        inset 0 1px 0 rgba(212, 175, 55, 0.2);
+            transform: translateY(-1px);
+        }
+
+        /* Image Size Slider */
+        .size-slider-container {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .size-slider-container i {
+            color: #d4af37;
+            font-size: 0.9rem;
+        }
+
+        .size-slider {
+            width: 120px;
+            height: 6px;
+            background: rgba(212, 175, 55, 0.2);
+            border-radius: 3px;
+            outline: none;
+            cursor: pointer;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        .size-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            background: linear-gradient(135deg, #d4af37, #ffd700);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(212, 175, 55, 0.4);
+            transition: all 0.2s ease;
+        }
+
+        .size-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            box-shadow: 0 4px 12px rgba(212, 175, 55, 0.6);
+        }
+
+        .size-slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            background: linear-gradient(135deg, #d4af37, #ffd700);
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(212, 175, 55, 0.4);
+            transition: all 0.2s ease;
+        }
+
+        .size-slider::-moz-range-thumb:hover {
+            transform: scale(1.2);
+            box-shadow: 0 4px 12px rgba(212, 175, 55, 0.6);
+        }
+
+        /* Image Viewer Container */
+        .image-viewer {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: calc(100vh - 80px);
+            padding: 2rem;
+            position: relative;
+        }
+
+        .image-container {
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            width: 100%;
+            max-width: 1800px;
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        #currentImage {
+            max-width: 100%;
+            max-height: calc(100vh - 100px);
+            width: auto;
+            height: auto;
+            object-fit: contain;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8),
+                        0 0 40px rgba(212, 175, 55, 0.2);
+            transition: opacity 0.3s ease;
+            transform-origin: top center;
+            cursor: none;
+            position: relative;
+        }
+
+        /* Custom Cursor Overlay */
+        .custom-cursor {
+            position: fixed;
+            width: 48px;
+            height: 48px;
+            pointer-events: none;
+            z-index: 10000;
+            transform: translate(-50%, -50%);
+            transition: opacity 0.2s ease;
+            opacity: 0;
+        }
+
+        .custom-cursor img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5)) 
+                    brightness(0.7) 
+                    contrast(1.5) 
+                    saturate(1.3);
+        }
+
+        .custom-cursor.flip {
+            transform: translate(-50%, -50%) scaleX(-1);
+        }
+
+        /* Navigation Buttons - Hidden, using click zones instead */
+        .nav-btn {
+            display: none;
+        }
+
+        /* Image Counter */
+        .image-counter {
+            position: fixed;
+            top: 100px;
+            left: 2rem;
+            background: rgba(10, 10, 10, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            padding: 0.75rem 1.25rem;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #ffd700;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6),
+                        inset 0 1px 0 rgba(212, 175, 55, 0.1);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 99;
+            min-width: 120px;
+            text-align: center;
+        }
+
+        body:hover .image-counter {
+            opacity: 1;
+        }
+
+        /* Playlist Widgets */
+        .playlist-widget {
+            position: fixed;
+            top: 160px;
+            left: 2rem;
+            background: rgba(10, 10, 10, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            padding: 0.75rem 1rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6),
+                        inset 0 1px 0 rgba(212, 175, 55, 0.1);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 99;
+            min-width: 180px;
+        }
+
+        body:hover .playlist-widget {
+            opacity: 1;
+        }
+
+        .playlist-selector-widget {
+            top: 230px;
+        }
+
+        .add-to-playlist-widget {
+            top: 160px;
+        }
+
+        /* Enhancement Widget */
+        .enhance-widget {
+            top: 300px;
+        }
+
+        .enhance-settings-widget {
+            top: 370px;
+        }
+
+        .enhance-btn {
+            width: 100%;
+            padding: 0.5rem 0.75rem;
+            background: linear-gradient(135deg, #9b59b6, #8e44ad);
+            border: 1px solid #9b59b6;
+            color: #ffffff;
+            font-weight: 700;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            font-size: 0.8rem;
+        }
+
+        .enhance-settings-btn {
+            width: 100%;
+            padding: 0.5rem 0.75rem;
+            background: rgba(155, 89, 182, 0.2);
+            border: 1px solid rgba(155, 89, 182, 0.5);
+            color: #9b59b6;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            font-size: 0.8rem;
+        }
+
+        .enhance-settings-btn:hover {
+            background: rgba(155, 89, 182, 0.3);
+            border-color: #9b59b6;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(155, 89, 182, 0.3);
+        }
+
+        .enhance-settings-btn.active {
+            background: rgba(155, 89, 182, 0.4);
+            border-color: #9b59b6;
+            color: #ffffff;
+        }
+
+        .enhance-btn:hover:not(:disabled) {
+            background: linear-gradient(135deg, #8e44ad, #7d3c98);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(155, 89, 182, 0.4);
+        }
+
+        .enhance-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .enhance-btn.loading {
+            position: relative;
+            color: transparent;
+        }
+
+        .enhance-btn.loading::after {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #ffffff;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .playlist-selector-btn-single {
+            width: 100%;
+            padding: 0.5rem 0.75rem;
+            background: rgba(212, 175, 55, 0.1);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            color: #ffd700;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+            font-size: 0.8rem;
+        }
+
+        .playlist-selector-btn-single:hover {
+            background: rgba(212, 175, 55, 0.2);
+            border-color: #d4af37;
+        }
+
+        .playlist-dropdown-single {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            margin-top: 0.5rem;
+            background: rgba(10, 10, 10, 0.98);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            border-radius: 10px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8);
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 1001;
+            display: none;
+        }
+
+        .playlist-selector-widget.dropdown-active {
+            z-index: 1000;
+        }
+
+        .playlist-dropdown-single.show {
+            display: block;
+        }
+
+        .playlist-option-single {
+            padding: 0.65rem 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-bottom: 1px solid rgba(212, 175, 55, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #fff;
+            font-size: 0.8rem;
+        }
+
+        .playlist-option-single:hover {
+            background: rgba(212, 175, 55, 0.2);
+        }
+
+        .playlist-option-single.selected {
+            background: rgba(212, 175, 55, 0.3);
+            font-weight: 600;
+        }
+
+        .add-playlist-btn {
+            width: 100%;
+            padding: 0.5rem 0.75rem;
+            background: linear-gradient(135deg, #d4af37, #ffd700);
+            border: 1px solid #ffd700;
+            color: #000000;
+            font-weight: 700;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            font-size: 0.8rem;
+        }
+
+        .add-playlist-btn:hover {
+            background: linear-gradient(135deg, #c5a028, #d4af37);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(212, 175, 55, 0.4);
+        }
+
+        .add-playlist-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Enhancement Settings Modal */
+        .enhance-settings-modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            z-index: 999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .enhance-settings-modal-backdrop.show {
+            display: flex;
+        }
+
+        .enhance-settings-modal {
+            width: 500px;
+            max-width: 90vw;
+            max-height: 80vh;
+            background: rgba(15, 15, 15, 0.98);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(155, 89, 182, 0.4);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .enhance-settings-header {
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid rgba(155, 89, 182, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        .enhance-settings-header h3 {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #9b59b6;
+        }
+
+        .enhance-settings-close {
+            background: none;
+            border: none;
+            color: #9b59b6;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .enhance-settings-close:hover {
+            background: rgba(155, 89, 182, 0.2);
+            color: #d4af37;
+        }
+
+        .enhance-settings-body {
+            padding: 1.5rem;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .enhance-settings-body::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .enhance-settings-body::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .enhance-settings-body::-webkit-scrollbar-thumb {
+            background: rgba(155, 89, 182, 0.6);
+            border-radius: 4px;
+        }
+
+        .enhance-settings-body::-webkit-scrollbar-thumb:hover {
+            background: rgba(155, 89, 182, 0.8);
+        }
+
+        .enhance-setting-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .enhance-setting-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .enhance-setting-label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #b8b8b8;
+            margin-bottom: 0.5rem;
+        }
+
+        .enhance-slider {
+            width: 100%;
+            height: 6px;
+            background: rgba(155, 89, 182, 0.2);
+            border-radius: 3px;
+            outline: none;
+            cursor: pointer;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        .enhance-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            background: linear-gradient(135deg, #9b59b6, #8e44ad);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(155, 89, 182, 0.4);
+            transition: all 0.2s ease;
+        }
+
+        .enhance-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            box-shadow: 0 4px 12px rgba(155, 89, 182, 0.6);
+        }
+
+        .enhance-slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            background: linear-gradient(135deg, #9b59b6, #8e44ad);
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(155, 89, 182, 0.4);
+            transition: all 0.2s ease;
+        }
+
+        .enhance-slider::-moz-range-thumb:hover {
+            transform: scale(1.2);
+            box-shadow: 0 4px 12px rgba(155, 89, 182, 0.6);
+        }
+
+        .enhance-slider-value {
+            display: inline-block;
+            margin-left: 0.5rem;
+            font-size: 0.75rem;
+            color: #9b59b6;
+            font-weight: 600;
+        }
+
+        .enhance-input {
+            width: 100%;
+            padding: 0.4rem 0.6rem;
+            background: rgba(155, 89, 182, 0.1);
+            border: 1px solid rgba(155, 89, 182, 0.3);
+            color: #ffffff;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-family: 'Inter', sans-serif;
+            resize: vertical;
+            min-height: 60px;
+        }
+
+        .enhance-input:focus {
+            outline: none;
+            border-color: #9b59b6;
+            background: rgba(155, 89, 182, 0.15);
+        }
+
+        .enhance-checkbox-container {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .enhance-checkbox {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: #9b59b6;
+        }
+
+        .enhance-checkbox-label {
+            font-size: 0.75rem;
+            color: #ffffff;
+            cursor: pointer;
+        }
+
+        /* Comparison View - Toggle Mode */
+        .comparison-view {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+            width: 100%;
+        }
+
+        .comparison-view.active {
+            display: flex;
+        }
+
+        .comparison-toggle-container {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .comparison-toggle-btn {
+            padding: 0.75rem 2rem;
+            border: 2px solid rgba(155, 89, 182, 0.5);
+            border-radius: 10px;
+            background: rgba(20, 20, 20, 0.9);
+            color: #b8b8b8;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .comparison-toggle-btn:hover {
+            border-color: rgba(155, 89, 182, 0.8);
+            color: #ffffff;
+        }
+
+        .comparison-toggle-btn.active {
+            background: linear-gradient(135deg, #9b59b6, #8e44ad);
+            border-color: #9b59b6;
+            color: #ffffff;
+        }
+
+        .comparison-image-container {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            width: 100%;
+            min-height: 400px;
+            overflow: visible;
+            margin-bottom: 2rem;
+        }
+
+        .comparison-image-wrapper {
+            display: none;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        .comparison-image-wrapper.active {
+            display: flex;
+        }
+
+        .comparison-image {
+            max-width: 100%;
+            max-height: calc(100vh - 100px);
+            width: auto;
+            height: auto;
+            object-fit: contain;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+            transform-origin: top center;
+            transition: transform 0.1s ease;
+        }
+
+        .comparison-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-top: auto;
+            padding-top: 1rem;
+            position: relative;
+            z-index: 10;
+        }
+
+        .comparison-btn {
+            padding: 0.75rem 2rem;
+            border: none;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .comparison-btn.save {
+            background: linear-gradient(135deg, #28a745, #218838);
+            color: #ffffff;
+        }
+
+        .comparison-btn.save:hover {
+            background: linear-gradient(135deg, #218838, #1e7e34);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
+        }
+
+        .comparison-btn.discard {
+            background: linear-gradient(135deg, #dc3545, #c82333);
+            color: #ffffff;
+        }
+
+        .comparison-btn.discard:hover {
+            background: linear-gradient(135deg, #c82333, #bd2130);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(220, 53, 69, 0.4);
+        }
+
+        /* Canvas Overlay for Mask Drawing */
+        .mask-canvas-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            cursor: crosshair;
+            display: none;
+            z-index: 10;
+            transform-origin: top center;
+            border-radius: 16px; /* Match image border-radius */
+        }
+
+        .mask-canvas-overlay.active {
+            display: block;
+            pointer-events: all;
+        }
+
+        /* Status Indicator */
+        .enhance-status {
+            position: fixed;
+            top: 80px;
+            right: 2rem;
+            background: rgba(10, 10, 10, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(155, 89, 182, 0.3);
+            padding: 0.75rem 1rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+            font-size: 0.8rem;
+            color: #ffffff;
+            z-index: 100;
+            display: none;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .enhance-status.show {
+            display: flex;
+        }
+
+        .enhance-status.loading::before {
+            content: '';
+            width: 14px;
+            height: 14px;
+            border: 2px solid #9b59b6;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+
+        .enhance-status.success {
+            border-color: rgba(40, 167, 69, 0.3);
+        }
+
+        .enhance-status.success::before {
+            content: '\f00c';
+            font-family: 'Font Awesome 6 Free';
+            font-weight: 900;
+            color: #28a745;
+        }
+
+        .enhance-status.error {
+            border-color: rgba(220, 53, 69, 0.3);
+        }
+
+        .enhance-status.error::before {
+            content: '\f071';
+            font-family: 'Font Awesome 6 Free';
+            font-weight: 900;
+            color: #dc3545;
+        }
+
+        /* Keyboard Hints - Hidden */
+        .keyboard-hints {
+            display: none;
+        }
+
+        .keyboard-hint {
+            display: none;
+        }
+
+        .key {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .header-content {
+                flex-wrap: wrap;
+            }
+
+            .image-viewer {
+                padding: 1rem;
+            }
+
+            .nav-btn {
+                width: 40px;
+                height: 40px;
+                font-size: 1rem;
+            }
+
+            .prev-btn {
+                left: 1rem;
+            }
+
+            .next-btn {
+                right: 1rem;
+            }
+
+            .image-counter {
+                bottom: 1rem;
+                padding: 0.5rem 1rem;
+                font-size: 0.8rem;
+            }
+
+            .keyboard-hints {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div style="display: flex; align-items: center; gap: 1.5rem;">
+                <h1 class="app-title">
+                    <a href="/">
+                        <i class="fas fa-images"></i>
+                        VAMA Gallery
+                    </a>
+                </h1>
+                <div class="breadcrumb">
+                    <span>{{post_name}}</span>
+                </div>
+            </div>
+            <div class="header-controls">
+                <div class="size-slider-container">
+                    <i class="fas fa-search-minus"></i>
+                    <input type="range" id="sizeSlider" class="size-slider" min="50" max="300" value="100" step="10">
+                    <i class="fas fa-search-plus"></i>
+                </div>
+                <a href="/posts/{{post_id}}_cascade.html" class="control-btn">
+                    <i class="fas fa-th"></i> Cascade View
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Image Viewer -->
+    <div class="image-viewer">
+        <div class="image-container">
+            <button class="nav-btn prev-btn" id="prevImage">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+            
+            <img id="currentImage" src="" alt="Current image">
+            
+            <button class="nav-btn next-btn" id="nextImage">
+                <i class="fas fa-chevron-right"></i>
+            </button>
+        </div>
+
+        <div class="image-counter" id="imageCounter">
+            1 / {{total_images}}
+        </div>
+
+        <!-- Add to Playlist Widget -->
+        <div class="playlist-widget add-to-playlist-widget">
+            <button class="add-playlist-btn" id="addToPlaylistBtn" disabled>
+                <i class="fas fa-plus"></i>
+                <span>Add to Playlist</span>
+            </button>
+        </div>
+
+        <!-- Playlist Selector Widget -->
+        <div class="playlist-widget playlist-selector-widget">
+            <div style="position: relative;">
+                <button class="playlist-selector-btn-single" id="playlistSelectorBtnSingle">
+                    <span id="selectedPlaylistNameSingle">Select Playlist</span>
+                    <i class="fas fa-chevron-down"></i>
+                </button>
+                <div class="playlist-dropdown-single" id="playlistDropdownSingle">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Enhance Eyes Widget -->
+        <div class="playlist-widget enhance-widget">
+            <button class="enhance-btn" id="enhanceBtn">
+                <i class="fas fa-magic"></i>
+                <span>Enhance Eyes</span>
+            </button>
+        </div>
+
+        <!-- Enhance Settings Widget -->
+        <div class="playlist-widget enhance-settings-widget">
+            <button class="enhance-settings-btn" id="enhanceSettingsBtn">
+                <i class="fas fa-sliders-h"></i>
+                <span>Settings</span>
+            </button>
+        </div>
+
+        <!-- Enhancement Settings Modal -->
+        <div class="enhance-settings-modal-backdrop" id="enhanceSettingsBackdrop">
+            <div class="enhance-settings-modal" id="enhanceSettingsModal">
+                <div class="enhance-settings-header">
+                    <h3><i class="fas fa-sliders-h"></i> Enhancement Settings</h3>
+                    <button class="enhance-settings-close" id="enhanceSettingsClose">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="enhance-settings-body">
+                    <div class="enhance-setting-group">
+                        <label class="enhance-setting-label">
+                            Denoising Strength
+                            <span class="enhance-slider-value" id="denoisingValue">0.2</span>
+                        </label>
+                        <input type="range" class="enhance-slider" id="denoisingSlider" 
+                               min="0.1" max="1.0" step="0.05" value="0.2">
+                    </div>
+                    
+                    <div class="enhance-setting-group">
+                        <label class="enhance-setting-label">Positive Prompt</label>
+                        <textarea class="enhance-input" id="positivePrompt" 
+                                  placeholder="masterpiece, best quality, highly detailed anime eyes...">masterpiece, best quality, highly detailed anime eyes, sharp clear pupils, beautiful iris detail, perfect symmetry, extremely detailed, 8k, ultra sharp focus</textarea>
+                    </div>
+                    
+                    <div class="enhance-setting-group">
+                        <label class="enhance-setting-label">Negative Prompt</label>
+                        <textarea class="enhance-input" id="negativePrompt" 
+                                  placeholder="blurry, low quality...">blurry, low quality, distorted, malformed eyes, asymmetric, watermark</textarea>
+                    </div>
+                    
+                    <div class="enhance-setting-group">
+                        <div class="enhance-checkbox-container">
+                            <input type="checkbox" class="enhance-checkbox" id="customMaskCheckbox">
+                            <label class="enhance-checkbox-label" for="customMaskCheckbox">
+                                Use Custom Mask (draw rectangle)
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Comparison View (hidden by default) -->
+        <div class="comparison-view" id="comparisonView">
+            <div class="comparison-toggle-container">
+                <button class="comparison-toggle-btn active" id="toggleOriginal">
+                    <i class="fas fa-image"></i> Original
+                </button>
+                <button class="comparison-toggle-btn" id="toggleEnhanced">
+                    <i class="fas fa-sparkles"></i> Enhanced
+                </button>
+            </div>
+            <div class="comparison-image-container">
+                <div class="comparison-image-wrapper active" id="originalWrapper">
+                    <img class="comparison-image" id="comparisonOriginal" src="" alt="Original">
+                </div>
+                <div class="comparison-image-wrapper" id="enhancedWrapper">
+                    <img class="comparison-image" id="comparisonEnhanced" src="" alt="Enhanced">
+                </div>
+            </div>
+            <div class="comparison-actions">
+                <button class="comparison-btn save" id="saveEnhancementBtn">
+                    <i class="fas fa-check"></i> Save Enhanced Version
+                </button>
+                <button class="comparison-btn discard" id="discardEnhancementBtn">
+                    <i class="fas fa-times"></i> Discard &amp; Keep Original
+                </button>
+            </div>
+        </div>
+
+        <!-- Canvas Overlay for Custom Mask Drawing -->
+        <canvas class="mask-canvas-overlay" id="maskCanvas"></canvas>
+    </div>
+
+    <!-- Enhancement Status Indicator -->
+    <div class="enhance-status" id="enhanceStatus">
+        <span id="enhanceStatusText">Processing...</span>
+    </div>
+
+    <!-- Custom Cursor -->
+    <div class="custom-cursor" id="customCursor">
+        <img src="/styles/cupid_arrow.png" alt="cursor">
+    </div>
+
+    <script>
+        const POST_DATA = {
+            post_id: '{{post_id}}',
+            post_name: '{{post_name}}',
+            total_images: {{total_images}},
+            images: {{images_json}}
+        };
+
+        const postId = POST_DATA.post_id;
+        let currentImageIndex = 0;
+        const images = POST_DATA.images;
+        let imageScale = 1.0; // Default scale
+        
+        // Mask drawing state (declared early to avoid initialization errors)
+        let maskDrawing = {
+            isDrawing: false,
+            startX: 0,
+            startY: 0,
+            canvas: null,
+            ctx: null,
+            imageEl: null
+        };
+        
+        // Playlist state
+        let selectedPlaylistId = null;
+        let selectedPlaylistName = null;
+        let isAddingToPlaylist = false;
+        
+        // Enhancement state
+        let enhancementState = {
+            isProcessing: false,
+            settingsVisible: false,
+            currentEnhancedPath: null,
+            currentEnhancedFilename: null,
+            currentOriginalPath: null,
+            customMaskEnabled: false,
+            maskCoords: null,
+            lastConfig: null,
+            sdWebuiAvailable: false,
+            // Settings (preserved during session, reset between posts)
+            denoisingStrength: 0.2,
+            positivePrompt: "masterpiece, best quality, highly detailed anime eyes, sharp clear pupils, beautiful iris detail, perfect symmetry, extremely detailed, 8k, ultra sharp focus",
+            negativePrompt: "blurry, low quality, distorted, malformed eyes, asymmetric, watermark"
+        };
+        
+        // Check if we're on a different post and reset settings
+        const lastPostId = sessionStorage.getItem('lastEnhancePostId');
+        if (lastPostId !== postId) {
+            sessionStorage.setItem('lastEnhancePostId', postId);
+            enhancementState.denoisingStrength = 0.2;
+            enhancementState.positivePrompt = "masterpiece, best quality, highly detailed anime eyes, sharp clear pupils, beautiful iris detail, perfect symmetry, extremely detailed, 8k, ultra sharp focus";
+            enhancementState.negativePrompt = "blurry, low quality, distorted, malformed eyes, asymmetric, watermark";
+            document.getElementById('denoisingSlider').value = 0.2;
+            document.getElementById('positivePrompt').value = enhancementState.positivePrompt;
+            document.getElementById('negativePrompt').value = enhancementState.negativePrompt;
+        }
+        
+        // Initialize size slider
+        const sizeSlider = document.getElementById('sizeSlider');
+        const currentImageEl = document.getElementById('currentImage');
+        
+        // Restore slider value from sessionStorage (persists during session, resets on refresh)
+        const savedScale = sessionStorage.getItem('imageScale');
+        if (savedScale) {
+            sizeSlider.value = savedScale;
+            imageScale = parseFloat(savedScale) / 100;
+        }
+        
+        // Handle slider changes
+        sizeSlider.addEventListener('input', function() {
+            imageScale = this.value / 100;
+            sessionStorage.setItem('imageScale', this.value);
+            applyImageScale();
+        });
+        
+        function applyImageScale() {
+            currentImageEl.style.transform = `scale(${imageScale})`;
+            currentImageEl.style.transformOrigin = 'top center';
+            
+            // Also apply to comparison images to match single image view exactly
+            const comparisonOriginal = document.getElementById('comparisonOriginal');
+            const comparisonEnhanced = document.getElementById('comparisonEnhanced');
+            if (comparisonOriginal && comparisonEnhanced) {
+                comparisonOriginal.style.transform = `scale(${imageScale})`;
+                comparisonEnhanced.style.transform = `scale(${imageScale})`;
+                comparisonOriginal.style.transformOrigin = 'top center';
+                comparisonEnhanced.style.transformOrigin = 'top center';
+            }
+            
+            // Update mask canvas to match new scale (only if initialized)
+            if (typeof maskDrawing !== 'undefined' && maskDrawing.canvas && enhancementState.customMaskEnabled) {
+                updateCanvasSize();
+            }
+        }
+        
+        // Click navigation on image (left side = previous, right side = next)
+        currentImageEl.addEventListener('click', function(e) {
+            const rect = this.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const imageWidth = rect.width;
+            
+            // If clicked on left half, go to previous; if right half, go to next
+            if (clickX < imageWidth / 2) {
+                if (currentImageIndex > 0) {
+                    currentImageIndex--;
+                    updateImage();
+                }
+            } else {
+                if (currentImageIndex < images.length - 1) {
+                    currentImageIndex++;
+                    updateImage();
+                }
+            }
+        });
+        
+        // Custom cursor tracking
+        const customCursor = document.getElementById('customCursor');
+        let isOverImage = false;
+        
+        // Update cursor based on hover position
+        currentImageEl.addEventListener('mousemove', function(e) {
+            const rect = this.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const imageWidth = rect.width;
+            
+            // Update cursor position
+            customCursor.style.left = e.clientX + 'px';
+            customCursor.style.top = e.clientY + 'px';
+            customCursor.style.opacity = '1';
+            isOverImage = true;
+            
+            // Flip cursor based on position
+            if (clickX < imageWidth / 2) {
+                // Left side - normal arrow
+                customCursor.classList.remove('flip');
+                if (currentImageIndex === 0) {
+                    customCursor.style.opacity = '0.3';
+                }
+            } else {
+                // Right side - flipped arrow
+                customCursor.classList.add('flip');
+                if (currentImageIndex === images.length - 1) {
+                    customCursor.style.opacity = '0.3';
+                }
+            }
+        });
+        
+        // Hide cursor when leaving image
+        currentImageEl.addEventListener('mouseleave', function() {
+            customCursor.style.opacity = '0';
+            isOverImage = false;
+        });
+        
+        // Show cursor when entering image
+        currentImageEl.addEventListener('mouseenter', function() {
+            isOverImage = true;
+        });
+        
+        // Update cursor on general mouse move
+        document.addEventListener('mousemove', function(e) {
+            if (isOverImage) {
+                customCursor.style.left = e.clientX + 'px';
+                customCursor.style.top = e.clientY + 'px';
+            }
+        });
+        
+        // Check URL parameters for direct image navigation
+        const urlParams = new URLSearchParams(window.location.search);
+        const imageParam = urlParams.get('image');
+        if (imageParam !== null) {
+            const isPureNumber = /^\d+$/.test(imageParam);
+            
+            if (isPureNumber) {
+                const imageIndex = parseInt(imageParam);
+                if (imageIndex >= 0 && imageIndex < images.length) {
+                    currentImageIndex = imageIndex;
+                }
+            } else {
+                const foundIndex = images.findIndex(img => img.filename === imageParam);
+                if (foundIndex >= 0) {
+                    currentImageIndex = foundIndex;
+                } else {
+                    currentImageIndex = 0;
+                }
+            }
+        }
+        
+        function updateImage() {
+            if (images.length === 0) return;
+
+            const currentImage = images[currentImageIndex];
+            const imgElement = document.getElementById('currentImage');
+            const counterElement = document.getElementById('imageCounter');
+            const prevBtn = document.getElementById('prevImage');
+            const nextBtn = document.getElementById('nextImage');
+
+            // For playlists, use currentImage.post_id; for posts, use postId
+            const imagePostId = currentImage.post_id || postId;
+            const imageUrl = `/api/images/content/${imagePostId}/${currentImage.filename}`;
+            imgElement.src = imageUrl;
+            imgElement.alt = currentImage.filename;
+            counterElement.textContent = `${currentImageIndex + 1} / ${images.length}`;
+            
+            // Apply current scale to new image
+            applyImageScale();
+            
+            // Disable buttons at boundaries
+            prevBtn.disabled = currentImageIndex === 0;
+            nextBtn.disabled = currentImageIndex === images.length - 1;
+            
+            // Update URL parameter without page reload
+            const newUrl = new URL(window.location);
+            newUrl.searchParams.set('image', currentImageIndex);
+            window.history.replaceState({}, '', newUrl);
+        }
+
+        document.getElementById('prevImage').addEventListener('click', () => {
+            if (currentImageIndex > 0) {
+                currentImageIndex--;
+                updateImage();
+            }
+        });
+        
+        document.getElementById('nextImage').addEventListener('click', () => {
+            if (currentImageIndex < images.length - 1) {
+                currentImageIndex++;
+                updateImage();
+            }
+        });
+        
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            switch(e.key) {
+                case 'ArrowLeft':
+                    if (currentImageIndex > 0) {
+                        document.getElementById('prevImage').click();
+                    }
+                    break;
+                case 'ArrowRight':
+                    if (currentImageIndex < images.length - 1) {
+                        document.getElementById('nextImage').click();
+                    }
+                    break;
+            }
+        });
+        
+        // Initialize
+        if (images.length > 0) {
+            updateImage();
+        }
+        
+        // Playlist functionality
+        async function populatePlaylistSelector() {
+            try {
+                const response = await fetch('/api/playlists');
+                if (!response.ok) throw new Error('Failed to fetch playlists');
+                
+                const result = await response.json();
+                const playlists = result.playlists || [];
+                const dropdown = document.getElementById('playlistDropdownSingle');
+                
+                if (!dropdown) return;
+                
+                if (playlists.length === 0) {
+                    dropdown.innerHTML = '<div class="playlist-option-single" style="opacity: 0.6; cursor: default;">No playlists yet</div>';
+                } else {
+                    dropdown.innerHTML = playlists.map(p => `
+                        <div class="playlist-option-single" data-playlist-id="${p.playlist_id}" data-playlist-name="${p.name}">
+                            <span>📋</span>
+                            <span>${p.name}</span>
+                        </div>
+                    `).join('');
+                    
+                    dropdown.querySelectorAll('.playlist-option-single').forEach(option => {
+                        option.addEventListener('click', () => {
+                            selectPlaylist(option.dataset.playlistId, option.dataset.playlistName);
+                            dropdown.classList.remove('show');
+                            document.querySelector('.playlist-selector-widget').classList.remove('dropdown-active');
+                        });
+                    });
+                }
+            } catch (error) {
+                console.error('Failed to populate playlist selector:', error);
+            }
+        }
+        
+        function selectPlaylist(playlistId, playlistName) {
+            selectedPlaylistId = playlistId;
+            selectedPlaylistName = playlistName;
+            
+            document.getElementById('selectedPlaylistNameSingle').textContent = playlistName;
+            document.getElementById('addToPlaylistBtn').disabled = false;
+            
+            document.querySelectorAll('.playlist-option-single').forEach(opt => {
+                opt.classList.toggle('selected', opt.dataset.playlistId === playlistId);
+            });
+        }
+        
+        async function addCurrentImageToPlaylist() {
+            if (!selectedPlaylistId || isAddingToPlaylist) return;
+            
+            const currentImage = images[currentImageIndex];
+            if (!currentImage) return;
+            
+            isAddingToPlaylist = true;
+            const btn = document.getElementById('addToPlaylistBtn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding...';
+            btn.disabled = true;
+            
+            try {
+                const response = await fetch(`/api/playlists/${selectedPlaylistId}/images`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        images: [{
+                            post_id: postId,
+                            filename: currentImage.filename
+                        }]
+                    })
+                });
+                
+                if (!response.ok) throw new Error('Failed to add image');
+                
+                const result = await response.json();
+                if (result.success) {
+                    showNotification(`Added ${currentImage.filename} to ${selectedPlaylistName}`, 'success');
+                } else {
+                    throw new Error(result.error || 'Unknown error');
+                }
+            } catch (error) {
+                console.error('Failed to add image:', error);
+                showNotification(`Failed: ${error.message}`, 'error');
+            } finally {
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                    isAddingToPlaylist = false;
+                }, 300);
+            }
+        }
+        
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 100px;
+                right: 20px;
+                background: ${type === 'success' ? 'rgba(40, 167, 69, 0.95)' : 'rgba(220, 53, 69, 0.95)'};
+                color: white;
+                padding: 12px 20px;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                z-index: 10000;
+                font-weight: 600;
+                animation: slideIn 0.3s ease;
+            `;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => notification.remove(), 300);
+            }, 2000);
+        }
+        
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideIn {
+                from { transform: translateX(400px); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes slideOut {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(400px); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
+        
+        // ============================================================================
+        // ENHANCEMENT FUNCTIONS
+        // ============================================================================
+        
+        async function checkEnhanceStatus() {
+            try {
+                const response = await fetch('/api/enhance/status');
+                const data = await response.json();
+                
+                if (data.success && data.data) {
+                    enhancementState.sdWebuiAvailable = data.data.available;
+                    return data.data;
+                } else {
+                    enhancementState.sdWebuiAvailable = false;
+                    return { available: false };
+                }
+            } catch (error) {
+                console.error('Failed to check enhancement status:', error);
+                enhancementState.sdWebuiAvailable = false;
+                return { available: false };
+            }
+        }
+        
+        async function startSDWebUI() {
+            showEnhanceStatus('Starting Stable Diffusion WebUI...', 'loading');
+            
+            try {
+                const response = await fetch('/api/enhance/start-sd-webui', { method: 'POST' });
+                const data = await response.json();
+                
+                if (data.success) {
+                    enhancementState.sdWebuiAvailable = true;
+                    showEnhanceStatus('SD WebUI started successfully', 'success');
+                    return true;
+                } else {
+                    showEnhanceStatus(`Failed to start SD WebUI: ${data.error}`, 'error');
+                    return false;
+                }
+            } catch (error) {
+                console.error('Failed to start SD WebUI:', error);
+                showEnhanceStatus('Failed to start SD WebUI', 'error');
+                return false;
+            }
+        }
+        
+        async function enhanceImage() {
+            if (enhancementState.isProcessing) return;
+            
+            const currentImage = images[currentImageIndex];
+            if (!currentImage) return;
+            
+            enhancementState.isProcessing = true;
+            const enhanceBtn = document.getElementById('enhanceBtn');
+            enhanceBtn.classList.add('loading');
+            enhanceBtn.disabled = true;
+            
+            try {
+                // Check if SD WebUI is available
+                const status = await checkEnhanceStatus();
+                if (!status.available) {
+                    // Show appropriate message based on KEEP_WEBUI_ALIVE setting
+                    if (status.keep_alive_enabled) {
+                        showEnhanceStatus(status.message || 'SD WebUI is starting up. Please wait...', 'info');
+                    } else {
+                        showEnhanceStatus(status.message || 'SD WebUI is not running. Please enable KEEP_WEBUI_ALIVE in config.', 'error');
+                    }
+                    enhancementState.isProcessing = false;
+                    enhanceBtn.classList.remove('loading');
+                    enhanceBtn.disabled = false;
+                    return;
+                }
+                
+                // Show processing status
+                showEnhanceStatus('Detecting eyes and enhancing...', 'loading');
+                
+                // Prepare request body
+                const requestBody = {
+                    denoising_strength: enhancementState.denoisingStrength,
+                    prompt: enhancementState.positivePrompt,
+                    negative_prompt: enhancementState.negativePrompt
+                };
+                
+                // Add custom mask if enabled
+                if (enhancementState.customMaskEnabled && enhancementState.maskCoords) {
+                    requestBody.custom_mask = enhancementState.maskCoords;
+                }
+                
+                // Call enhancement API
+                const response = await fetch(
+                    `/api/enhance/${postId}/${currentImage.filename}`,
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(requestBody)
+                    }
+                );
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Store filename and config for save/discard operations
+                    enhancementState.currentEnhancedFilename = data.data.enhanced_filename;
+                    enhancementState.currentOriginalPath = currentImage.filename;
+                    enhancementState.lastConfig = data.data.config;
+                    showEnhanceStatus('Enhancement complete!', 'success');
+                    
+                    // Reset custom mask mode after successful enhancement
+                    resetCustomMaskMode();
+                    
+                    showComparison();
+                } else {
+                    showEnhanceStatus(`Enhancement failed: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                console.error('Enhancement failed:', error);
+                showEnhanceStatus('Enhancement failed', 'error');
+            } finally {
+                enhancementState.isProcessing = false;
+                enhanceBtn.classList.remove('loading');
+                enhanceBtn.disabled = false;
+            }
+        }
+        
+        function resetCustomMaskMode() {
+            // Uncheck the custom mask checkbox
+            const customMaskCheckbox = document.getElementById('customMaskCheckbox');
+            if (customMaskCheckbox) {
+                customMaskCheckbox.checked = false;
+            }
+            
+            // Disable custom mask mode
+            enhancementState.customMaskEnabled = false;
+            enhancementState.maskCoords = null;
+            
+            // Remove canvas overlay and clear the drawn rectangle
+            const canvas = document.getElementById('maskCanvas');
+            if (canvas) {
+                canvas.classList.remove('active');
+                if (maskDrawing.ctx) {
+                    maskDrawing.ctx.clearRect(0, 0, canvas.width, canvas.height);
+                }
+            }
+        }
+        
+        function showComparison() {
+            const currentImage = images[currentImageIndex];
+            const imageContainer = document.querySelector('.image-container');
+            const comparisonView = document.getElementById('comparisonView');
+            const comparisonOriginal = document.getElementById('comparisonOriginal');
+            const comparisonEnhanced = document.getElementById('comparisonEnhanced');
+            
+            // Hide normal image view
+            imageContainer.style.display = 'none';
+            
+            // Show comparison view with proper API URLs
+            // Add cache-busting parameter to prevent browser from showing stale enhanced image
+            comparisonView.classList.add('active');
+            comparisonOriginal.src = `/api/images/content/${postId}/${currentImage.filename}`;
+            comparisonEnhanced.src = `/api/images/content/${postId}/${enhancementState.currentEnhancedFilename}?t=${Date.now()}`;
+        }
+        
+        function hideComparison() {
+            const imageContainer = document.querySelector('.image-container');
+            const comparisonView = document.getElementById('comparisonView');
+            
+            // Show normal image view
+            imageContainer.style.display = 'flex';
+            
+            // Hide comparison view
+            comparisonView.classList.remove('active');
+            
+            // Reset enhancement state
+            enhancementState.currentEnhancedPath = null;
+            enhancementState.currentEnhancedFilename = null;
+            enhancementState.currentOriginalPath = null;
+            enhancementState.lastConfig = null;
+            enhancementState.maskCoords = null;
+        }
+        
+        async function saveEnhancement() {
+            const currentImage = images[currentImageIndex];
+            if (!currentImage || !enhancementState.currentEnhancedFilename) return;
+            
+            showEnhanceStatus('Saving enhanced image...', 'loading');
+            
+            try {
+                const response = await fetch(
+                    `/api/enhance/${postId}/${currentImage.filename}/save`,
+                    { 
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            enhanced_filename: enhancementState.currentEnhancedFilename,
+                            config: enhancementState.lastConfig
+                        })
+                    }
+                );
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showEnhanceStatus('Enhanced image saved!', 'success');
+                    showNotification('Enhanced image saved successfully', 'success');
+                    
+                    // Update the image in the array and reload
+                    images[currentImageIndex].filename = data.new_filename;
+                    hideComparison();
+                    updateImage();
+                } else {
+                    showEnhanceStatus(`Save failed: ${data.error}`, 'error');
+                    showNotification('Failed to save enhancement', 'error');
+                }
+            } catch (error) {
+                console.error('Save enhancement failed:', error);
+                showEnhanceStatus('Save failed', 'error');
+                showNotification('Failed to save enhancement', 'error');
+            }
+        }
+        
+        async function discardEnhancement() {
+            const currentImage = images[currentImageIndex];
+            if (!currentImage || !enhancementState.currentEnhancedFilename) return;
+            
+            showEnhanceStatus('Discarding enhancement...', 'loading');
+            
+            try {
+                const response = await fetch(
+                    `/api/enhance/${postId}/${currentImage.filename}/discard`,
+                    { 
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            enhanced_filename: enhancementState.currentEnhancedFilename
+                        })
+                    }
+                );
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showEnhanceStatus('Enhancement discarded', 'success');
+                    hideComparison();
+                } else {
+                    showEnhanceStatus(`Discard failed: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                console.error('Discard enhancement failed:', error);
+                showEnhanceStatus('Discard failed', 'error');
+            }
+        }
+        
+        function showEnhanceStatus(message, type = 'info') {
+            const statusEl = document.getElementById('enhanceStatus');
+            const statusText = document.getElementById('enhanceStatusText');
+            
+            statusEl.className = 'enhance-status show ' + type;
+            statusText.textContent = message;
+            
+            // Auto-hide after 3 seconds for success/error
+            if (type === 'success' || type === 'error') {
+                setTimeout(() => {
+                    statusEl.classList.remove('show');
+                }, 3000);
+            }
+        }
+        
+        // Canvas-based mask drawing (already declared at top with other state variables)
+        
+        function initMaskCanvas() {
+            maskDrawing.canvas = document.getElementById('maskCanvas');
+            maskDrawing.ctx = maskDrawing.canvas.getContext('2d');
+            maskDrawing.imageEl = document.getElementById('currentImage');
+            
+            // Position and size canvas to match image
+            updateCanvasSize();
+            
+            // Mouse events
+            maskDrawing.canvas.addEventListener('mousedown', startDrawingMask);
+            maskDrawing.canvas.addEventListener('mousemove', drawMask);
+            maskDrawing.canvas.addEventListener('mouseup', endDrawingMask);
+        }
+        
+        function updateCanvasSize() {
+            const img = maskDrawing.imageEl;
+            const canvas = maskDrawing.canvas;
+            
+            // Canvas is positioned relative to .image-viewer (its parent)
+            const imageViewer = canvas.parentElement;
+            
+            const imgRect = img.getBoundingClientRect();
+            const viewerRect = imageViewer.getBoundingClientRect();
+            
+            // Set canvas to match the visual size (after transform)
+            canvas.width = imgRect.width;
+            canvas.height = imgRect.height;
+            canvas.style.width = imgRect.width + 'px';
+            canvas.style.height = imgRect.height + 'px';
+            
+            // Position canvas exactly at the image's visual position relative to image-viewer
+            const offsetLeft = imgRect.left - viewerRect.left;
+            const offsetTop = imgRect.top - viewerRect.top;
+            
+            canvas.style.left = offsetLeft + 'px';
+            canvas.style.top = offsetTop + 'px';
+            canvas.style.transform = 'none';
+            canvas.style.transformOrigin = 'top left';
+            
+            console.log('Canvas positioning:', {
+                imgRect: {left: imgRect.left, top: imgRect.top},
+                viewerRect: {left: viewerRect.left, top: viewerRect.top},
+                offset: {left: offsetLeft, top: offsetTop}
+            });
+        }
+        
+        function startDrawingMask(e) {
+            if (!enhancementState.customMaskEnabled) return;
+            
+            // Update canvas size in case image was scaled
+            updateCanvasSize();
+            
+            maskDrawing.isDrawing = true;
+            const rect = maskDrawing.canvas.getBoundingClientRect();
+            let startX = e.clientX - rect.left;
+            let startY = e.clientY - rect.top;
+            
+            // Clamp start position to canvas bounds
+            maskDrawing.startX = Math.max(0, Math.min(maskDrawing.canvas.width, startX));
+            maskDrawing.startY = Math.max(0, Math.min(maskDrawing.canvas.height, startY));
+            
+            // Clear previous rectangle
+            maskDrawing.ctx.clearRect(0, 0, maskDrawing.canvas.width, maskDrawing.canvas.height);
+        }
+        
+        function drawMask(e) {
+            if (!maskDrawing.isDrawing || !enhancementState.customMaskEnabled) return;
+            
+            const rect = maskDrawing.canvas.getBoundingClientRect();
+            let currentX = e.clientX - rect.left;
+            let currentY = e.clientY - rect.top;
+            
+            // Clamp to canvas bounds
+            currentX = Math.max(0, Math.min(maskDrawing.canvas.width, currentX));
+            currentY = Math.max(0, Math.min(maskDrawing.canvas.height, currentY));
+            
+            // Clear and redraw
+            maskDrawing.ctx.clearRect(0, 0, maskDrawing.canvas.width, maskDrawing.canvas.height);
+            maskDrawing.ctx.strokeStyle = '#9b59b6';
+            maskDrawing.ctx.lineWidth = 3;
+            maskDrawing.ctx.fillStyle = 'rgba(155, 89, 182, 0.2)';
+            
+            const width = currentX - maskDrawing.startX;
+            const height = currentY - maskDrawing.startY;
+            
+            maskDrawing.ctx.fillRect(maskDrawing.startX, maskDrawing.startY, width, height);
+            maskDrawing.ctx.strokeRect(maskDrawing.startX, maskDrawing.startY, width, height);
+        }
+        
+        function endDrawingMask(e) {
+            if (!maskDrawing.isDrawing || !enhancementState.customMaskEnabled) return;
+            
+            maskDrawing.isDrawing = false;
+            
+            const rect = maskDrawing.canvas.getBoundingClientRect();
+            const endX = e.clientX - rect.left;
+            const endY = e.clientY - rect.top;
+            
+            // CRITICAL: Normalize based on NATURAL image dimensions, not displayed size
+            // The displayed size includes CSS scaling (transform: scale()), but backend needs
+            // coordinates relative to the actual image pixels
+            const naturalWidth = maskDrawing.imageEl.naturalWidth;
+            const naturalHeight = maskDrawing.imageEl.naturalHeight;
+            
+            // Get displayed dimensions (after scaling)
+            const imgRect = maskDrawing.imageEl.getBoundingClientRect();
+            
+            // Calculate scale factor between displayed and natural dimensions
+            const scaleX = naturalWidth / imgRect.width;
+            const scaleY = naturalHeight / imgRect.height;
+            
+            // Convert canvas coordinates to natural image coordinates, then normalize
+            const x1 = (Math.min(maskDrawing.startX, endX) * scaleX) / naturalWidth;
+            const y1 = (Math.min(maskDrawing.startY, endY) * scaleY) / naturalHeight;
+            const x2 = (Math.max(maskDrawing.startX, endX) * scaleX) / naturalWidth;
+            const y2 = (Math.max(maskDrawing.startY, endY) * scaleY) / naturalHeight;
+            
+            // Store mask coordinates
+            enhancementState.maskCoords = {
+                x1: Math.max(0, Math.min(1, x1)),
+                y1: Math.max(0, Math.min(1, y1)),
+                x2: Math.max(0, Math.min(1, x2)),
+                y2: Math.max(0, Math.min(1, y2))
+            };
+            
+            console.log('Custom mask coordinates (normalized to natural image):', enhancementState.maskCoords);
+            console.log('Natural dimensions:', naturalWidth, 'x', naturalHeight);
+            console.log('Displayed dimensions:', imgRect.width, 'x', imgRect.height);
+        }
+        
+        // Enhancement settings event listeners
+        document.getElementById('denoisingSlider').addEventListener('input', function() {
+            enhancementState.denoisingStrength = parseFloat(this.value);
+            document.getElementById('denoisingValue').textContent = this.value;
+        });
+        
+        document.getElementById('positivePrompt').addEventListener('input', function() {
+            enhancementState.positivePrompt = this.value;
+        });
+        
+        document.getElementById('negativePrompt').addEventListener('input', function() {
+            enhancementState.negativePrompt = this.value;
+        });
+        
+        document.getElementById('customMaskCheckbox').addEventListener('change', function() {
+            enhancementState.customMaskEnabled = this.checked;
+            const canvas = document.getElementById('maskCanvas');
+            
+            if (this.checked) {
+                canvas.classList.add('active');
+                updateCanvasSize();
+                showNotification('Draw a rectangle around the eyes', 'info');
+            } else {
+                canvas.classList.remove('active');
+                maskDrawing.ctx.clearRect(0, 0, canvas.width, canvas.height);
+                enhancementState.maskCoords = null;
+            }
+        });
+        
+        document.getElementById('enhanceBtn').addEventListener('click', () => {
+            // Just trigger enhancement
+            enhanceImage();
+        });
+        
+        document.getElementById('enhanceSettingsBtn').addEventListener('click', () => {
+            // Toggle settings modal
+            enhancementState.settingsVisible = !enhancementState.settingsVisible;
+            const backdrop = document.getElementById('enhanceSettingsBackdrop');
+            const settingsBtn = document.getElementById('enhanceSettingsBtn');
+            
+            if (enhancementState.settingsVisible) {
+                backdrop.classList.add('show');
+                settingsBtn.classList.add('active');
+            } else {
+                backdrop.classList.remove('show');
+                settingsBtn.classList.remove('active');
+            }
+        });
+        
+        // Close button
+        document.getElementById('enhanceSettingsClose').addEventListener('click', () => {
+            enhancementState.settingsVisible = false;
+            document.getElementById('enhanceSettingsBackdrop').classList.remove('show');
+            document.getElementById('enhanceSettingsBtn').classList.remove('active');
+        });
+        
+        // Close on backdrop click (but not on modal click)
+        document.getElementById('enhanceSettingsBackdrop').addEventListener('click', (e) => {
+            if (e.target.id === 'enhanceSettingsBackdrop') {
+                enhancementState.settingsVisible = false;
+                document.getElementById('enhanceSettingsBackdrop').classList.remove('show');
+                document.getElementById('enhanceSettingsBtn').classList.remove('active');
+            }
+        });
+        
+        // Close on Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && enhancementState.settingsVisible) {
+                enhancementState.settingsVisible = false;
+                document.getElementById('enhanceSettingsBackdrop').classList.remove('show');
+                document.getElementById('enhanceSettingsBtn').classList.remove('active');
+            }
+        });
+        
+        document.getElementById('saveEnhancementBtn').addEventListener('click', saveEnhancement);
+        document.getElementById('discardEnhancementBtn').addEventListener('click', discardEnhancement);
+        
+        // Toggle buttons for comparison view
+        document.getElementById('toggleOriginal').addEventListener('click', () => {
+            document.getElementById('toggleOriginal').classList.add('active');
+            document.getElementById('toggleEnhanced').classList.remove('active');
+            document.getElementById('originalWrapper').classList.add('active');
+            document.getElementById('enhancedWrapper').classList.remove('active');
+        });
+        
+        document.getElementById('toggleEnhanced').addEventListener('click', () => {
+            document.getElementById('toggleEnhanced').classList.add('active');
+            document.getElementById('toggleOriginal').classList.remove('active');
+            document.getElementById('enhancedWrapper').classList.add('active');
+            document.getElementById('originalWrapper').classList.remove('active');
+        });
+        
+        // Initialize mask canvas
+        initMaskCanvas();
+        window.addEventListener('resize', updateCanvasSize);
+        
+        // Event listeners
+        document.getElementById('playlistSelectorBtnSingle').addEventListener('click', () => {
+            const dropdown = document.getElementById('playlistDropdownSingle');
+            const widget = document.querySelector('.playlist-selector-widget');
+            dropdown.classList.toggle('show');
+            widget.classList.toggle('dropdown-active', dropdown.classList.contains('show'));
+        });
+        
+        document.getElementById('addToPlaylistBtn').addEventListener('click', addCurrentImageToPlaylist);
+        
+        document.addEventListener('click', (e) => {
+            const dropdown = document.getElementById('playlistDropdownSingle');
+            const btn = document.getElementById('playlistSelectorBtnSingle');
+            const widget = document.querySelector('.playlist-selector-widget');
+            if (btn && !btn.contains(e.target) && dropdown && !dropdown.contains(e.target)) {
+                dropdown.classList.remove('show');
+                widget.classList.remove('dropdown-active');
+            }
+        });
+        
+        // Load playlists on page load
+        populatePlaylistSelector();
+    </script>
+</body>
+</html>

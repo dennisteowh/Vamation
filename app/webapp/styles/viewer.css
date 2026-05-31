@@ -1,0 +1,634 @@
+/* Viewer Styles - Single Image and Cascade Views */
+
+/* Single Image Modal */
+.single-image-modal .modal-content {
+    width: 95vw;
+    height: 95vh;
+    max-width: none;
+    max-height: none;
+    display: flex;
+    flex-direction: column;
+}
+
+.single-image-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    background: #000;
+    position: relative;
+    min-height: 0;
+}
+
+.nav-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(255, 255, 255, 0.9);
+    border: none;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    z-index: 100;
+    backdrop-filter: blur(10px);
+}
+
+.nav-btn:hover {
+    background: rgba(255, 255, 255, 1);
+    transform: translateY(-50%) scale(1.1);
+    box-shadow: var(--shadow-lg);
+}
+
+.nav-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+    transform: translateY(-50%) scale(1);
+}
+
+.prev-btn {
+    left: var(--spacing-lg);
+}
+
+.next-btn {
+    right: var(--spacing-lg);
+}
+
+.image-display {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    padding: 0 80px;
+}
+
+#singleImage {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-xl);
+    transition: opacity var(--transition-normal);
+}
+
+.image-counter {
+    position: absolute;
+    bottom: var(--spacing-lg);
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--radius-lg);
+    font-size: 0.9rem;
+    font-weight: 500;
+    backdrop-filter: blur(10px);
+}
+
+.single-image-controls {
+    padding: var(--spacing-lg);
+    border-top: 1px solid var(--border-color);
+    background: var(--surface-secondary);
+    display: flex;
+    justify-content: center;
+}
+
+/* Cascade Modal */
+.cascade-modal .modal-content {
+    width: 95vw;
+    height: 95vh;
+    max-width: none;
+    max-height: none;
+    display: flex;
+    flex-direction: column;
+}
+
+.cascade-controls {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-lg);
+    margin-left: auto;
+    margin-right: var(--spacing-lg);
+}
+
+.size-slider {
+    width: 150px;
+    height: 6px;
+    background: var(--border-color);
+    border-radius: 3px;
+    outline: none;
+    cursor: pointer;
+    transition: background var(--transition-fast);
+}
+
+.size-slider::-webkit-slider-thumb {
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: var(--shadow-md);
+}
+
+.size-slider::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
+    box-shadow: var(--shadow-md);
+}
+
+.cascade-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--spacing-lg);
+    background: var(--surface-secondary);
+    min-height: 0;
+}
+
+.cascade-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(var(--image-size, 200px), 1fr));
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-xl);
+}
+
+.cascade-item {
+    position: relative;
+    background: var(--surface-color);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-md);
+    transition: all var(--transition-normal);
+    cursor: pointer;
+}
+
+.cascade-item:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+}
+
+.cascade-item.hidden {
+    opacity: 0.4;
+    border: 2px dashed #ff9800;
+    background: rgba(255, 152, 0, 0.1);
+}
+
+.cascade-item.deleted {
+    opacity: 0.2;
+    filter: grayscale(100%);
+    border: 2px solid #f44336;
+    background: rgba(244, 67, 54, 0.1);
+}
+
+.cascade-item.edit-mode {
+    cursor: grab;
+}
+
+.cascade-item.edit-mode:active {
+    cursor: grabbing;
+}
+
+.cascade-item.dragging {
+    opacity: 0.5;
+    transform: rotate(5deg);
+    z-index: 1000;
+}
+
+.cascade-image {
+    width: 100%;
+    height: var(--image-size, 200px);
+    object-fit: cover;
+    transition: transform var(--transition-normal);
+}
+
+.cascade-item:hover .cascade-image {
+    transform: scale(1.02);
+}
+
+.cascade-item-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+    color: white;
+    padding: var(--spacing-md) var(--spacing-sm) var(--spacing-sm);
+    font-size: 0.8rem;
+    font-weight: 500;
+    text-align: center;
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+}
+
+.cascade-item:hover .cascade-item-overlay {
+    opacity: 1;
+}
+
+.cascade-item.edit-mode .cascade-item-overlay {
+    opacity: 1;
+    background: rgba(102, 126, 234, 0.9);
+}
+
+.cascade-item.edit-mode .drag-handle {
+    display: flex;
+}
+
+.drag-handle {
+    display: none;
+    position: absolute;
+    top: var(--spacing-sm);
+    right: var(--spacing-sm);
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: var(--radius-sm);
+    padding: var(--spacing-xs);
+    color: var(--text-primary);
+    font-size: 0.8rem;
+    cursor: grab;
+    z-index: 10;
+}
+
+.drag-handle:active {
+    cursor: grabbing;
+}
+
+/* Cascade Controls Overlay */
+.cascade-controls-overlay {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    opacity: 0;
+    transition: opacity 0.2s;
+    z-index: 15;
+    pointer-events: auto;
+}
+
+.cascade-item:hover .cascade-controls-overlay {
+    opacity: 1;
+}
+
+.cascade-item.edit-mode .cascade-controls-overlay {
+    opacity: 1;
+}
+
+.control-btn {
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    transition: all 0.2s;
+    backdrop-filter: blur(5px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.control-btn:hover {
+    background: rgba(0, 0, 0, 0.95);
+    transform: scale(1.05);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.visibility-btn:hover {
+    background: rgba(255, 152, 0, 0.9);
+    border-color: rgba(255, 152, 0, 1);
+}
+
+.delete-btn:hover {
+    background: rgba(244, 67, 54, 0.9);
+    border-color: rgba(244, 67, 54, 1);
+}
+
+/* Improve cascade item overlay positioning */
+.cascade-item-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+    color: white;
+    padding: 8px 6px 6px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-align: center;
+    opacity: 0;
+    transition: opacity 0.2s;
+    pointer-events: none;
+    z-index: 5;
+}
+
+.cascade-item:hover .cascade-item-overlay {
+    opacity: 1;
+}
+
+.cascade-item.edit-mode .cascade-item-overlay {
+    opacity: 1;
+    background: rgba(102, 126, 234, 0.9);
+    font-weight: 600;
+}
+
+/* Cascade Pagination */
+.cascade-pagination {
+    margin-top: var(--spacing-xl);
+    padding-top: var(--spacing-lg);
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-lg);
+}
+
+.cascade-pagination .pagination {
+    justify-content: center;
+}
+
+.cascade-pagination-info {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-lg);
+    width: 100%;
+    max-width: 500px;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    flex-wrap: wrap;
+}
+
+.cascade-items-per-page {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.cascade-items-per-page select {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--surface-color);
+    cursor: pointer;
+    font-size: 0.875rem;
+}
+
+.cascade-view-controls {
+    padding: var(--spacing-lg);
+    border-top: 1px solid var(--border-color);
+    background: var(--surface-secondary);
+    display: flex;
+    justify-content: center;
+    gap: var(--spacing-md);
+}
+
+.edit-mode-toggle {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.edit-mode-toggle:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.edit-mode-toggle.active {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+}
+
+/* Loading States */
+.image-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
+    background: var(--surface-secondary);
+    border-radius: var(--radius-lg);
+}
+
+.image-loading .spinner {
+    width: 30px;
+    height: 30px;
+}
+
+.cascade-loading {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(var(--image-size, 200px), 1fr));
+    gap: var(--spacing-md);
+}
+
+.cascade-loading-item {
+    height: var(--image-size, 200px);
+    background: linear-gradient(90deg, var(--border-light) 25%, var(--surface-secondary) 50%, var(--border-light) 75%);
+    background-size: 200% 100%;
+    border-radius: var(--radius-lg);
+    animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: -200% 0;
+    }
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+/* Error States */
+.image-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+    background: var(--surface-secondary);
+    border-radius: var(--radius-lg);
+    color: var(--text-muted);
+    gap: var(--spacing-sm);
+}
+
+.image-error i {
+    font-size: 2rem;
+    opacity: 0.5;
+}
+
+.image-error p {
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+/* Keyboard Navigation Hints */
+.keyboard-hints {
+    position: absolute;
+    top: var(--spacing-lg);
+    left: var(--spacing-lg);
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--radius-lg);
+    font-size: 0.8rem;
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+    backdrop-filter: blur(10px);
+}
+
+.single-image-modal:hover .keyboard-hints {
+    opacity: 1;
+}
+
+.keyboard-hint {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-xs);
+}
+
+.keyboard-hint:last-child {
+    margin-bottom: 0;
+}
+
+.key {
+    background: rgba(255, 255, 255, 0.2);
+    padding: 2px 6px;
+    border-radius: var(--radius-sm);
+    font-size: 0.7rem;
+    font-weight: bold;
+    min-width: 20px;
+    text-align: center;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+    .cascade-grid {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    }
+    
+    .cascade-controls {
+        flex-wrap: wrap;
+        gap: var(--spacing-md);
+    }
+    
+    .size-slider {
+        width: 120px;
+    }
+}
+
+@media (max-width: 768px) {
+    .single-image-modal .modal-content,
+    .cascade-modal .modal-content {
+        width: 100vw;
+        height: 100vh;
+        border-radius: 0;
+    }
+    
+    .image-display {
+        padding: 0 60px;
+    }
+    
+    .nav-btn {
+        width: 40px;
+        height: 40px;
+        font-size: 1rem;
+    }
+    
+    .prev-btn {
+        left: var(--spacing-md);
+    }
+    
+    .next-btn {
+        right: var(--spacing-md);
+    }
+    
+    .cascade-grid {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        gap: var(--spacing-sm);
+    }
+    
+    .cascade-container {
+        padding: var(--spacing-md);
+    }
+    
+    .cascade-pagination-info {
+        flex-direction: column;
+        gap: var(--spacing-sm);
+        text-align: center;
+    }
+    
+    .keyboard-hints {
+        display: none;
+    }
+}
+
+@media (max-width: 480px) {
+    .image-display {
+        padding: 0 50px;
+    }
+    
+    .nav-btn {
+        width: 35px;
+        height: 35px;
+        font-size: 0.9rem;
+    }
+    
+    .cascade-controls {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .size-slider {
+        width: 100px;
+    }
+    
+    .modal-header {
+        padding: var(--spacing-md);
+    }
+    
+    .modal-header h3 {
+        font-size: 1rem;
+    }
+}
+/* Enhanced drag handle positioning and styling */
+.cascade-item.edit-mode .drag-handle {
+    top: 8px !important;
+    left: 8px !important;
+    right: auto !important;
+    font-size: 10px !important;
+    padding: 4px 6px !important;
+    border-radius: 4px !important;
+    border: 1px solid rgba(0, 0, 0, 0.1) !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+}
+
+.cascade-item.edit-mode .drag-handle:active {
+    background: rgba(255, 255, 255, 1) !important;
+}
+
+/* Improve cascade item overlay for edit mode */
+.cascade-item.edit-mode .cascade-item-overlay {
+    bottom: 0 !important;
+    padding: 8px 6px 6px !important;
+    font-size: 0.75rem !important;
+    font-weight: 600 !important;
+    pointer-events: none !important;
+    z-index: 5 !important;
+}

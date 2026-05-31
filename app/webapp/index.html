@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VAMA Gallery & Organizer</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/gallery.css">
+    <link rel="stylesheet" href="styles/viewer.css">
+    <link rel="stylesheet" href="styles/edit-mode.css">
+    <link rel="stylesheet" href="styles/themes.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <h1 class="app-title">
+                <i class="fas fa-images"></i>
+                VAMA Gallery
+            </h1>
+            
+            <!-- Search Bar -->
+            <div class="search-container">
+                <input type="text" id="searchInput" placeholder="Search posts..." class="search-input">
+                <button class="search-btn">
+                    <i class="fas fa-search"></i>
+                </button>
+            </div>
+            
+            <!-- Header Controls -->
+            <div class="header-controls">
+                <!-- Sort Controls -->
+                <div class="sort-container">
+                    <label for="sortBy">Sort by:</label>
+                    <select id="sortBy" class="sort-select">
+                        <option value="post_date">Post Date</option>
+                        <option value="revised_post_name">Name</option>
+                    </select>
+                    <button id="sortOrder" class="sort-order-btn" title="Toggle sort order">
+                        <i class="fas fa-sort-amount-down"></i>
+                    </button>
+                </div>
+                
+                <!-- Filter Controls -->
+                <div class="sort-container">
+                    <label for="filterBy">Filter by:</label>
+                    <select id="filterBy" class="sort-select">
+                        <option value="all">All Posts</option>
+                        <option value="favourited">Favourited</option>
+                        <option value="extracted">Downloaded</option>
+                        <option value="not-extracted">Not Downloaded</option>
+                    </select>
+                </div>
+                
+                <!-- View Controls -->
+                <div class="view-controls">
+                    <button id="playlistsBtn" class="control-btn" title="View playlists">
+                        <i class="fas fa-list"></i>
+                        <span>Playlists</span>
+                    </button>
+                    <button id="editModeBtn" class="control-btn edit-mode-toggle" title="Toggle edit mode">
+                        <i class="fas fa-edit"></i>
+                        <span>Edit Mode</span>
+                    </button>
+                    <button id="updateMetadataBtn" class="control-btn" title="Update metadata">
+                        <i class="fas fa-rotate-right"></i>
+                        <span>Update</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Loading Spinner -->
+    <div id="loadingSpinner" class="loading-spinner">
+        <div class="spinner"></div>
+        <p>Loading gallery...</p>
+    </div>
+
+    <!-- Main Gallery Container -->
+    <main class="main-container">
+        <!-- Gallery Grid -->
+        <div id="galleryGrid" class="gallery-grid">
+            <!-- Gallery items will be dynamically inserted here -->
+        </div>
+        
+        <!-- Playlists Grid (hidden by default) -->
+        <div id="playlistsGrid" class="gallery-grid" style="display: none;">
+            <!-- Playlist cards will be dynamically inserted here -->
+        </div>
+        
+        <!-- Pagination -->
+        <div class="pagination-container">
+            <div class="pagination" id="pagination">
+                <!-- Pagination buttons will be dynamically generated -->
+            </div>
+            <div class="pagination-info">
+                <span id="paginationInfo">Showing 0-0 of 0 posts</span>
+                <div class="items-per-page">
+                    <label>Posts per page:</label>
+                    <select id="itemsPerPage">
+                        <option value="24">24</option>
+                        <option value="48" selected>48</option>
+                        <option value="96">96</option>
+                        <option value="144">144</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Playlists Modal -->
+    <div id="playlistsModal" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <h3>Playlists</h3>
+                <button class="close-modal" onclick="document.getElementById('playlistsModal').classList.remove('active')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h4>Your Playlists</h4>
+                    <button id="createPlaylistBtn" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Create Playlist
+                    </button>
+                </div>
+                <div id="playlistsList" class="playlists-list">
+                    <!-- Playlists will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div id="confirmationModal" class="modal confirmation-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Confirm Action</h3>
+            </div>
+            <div class="modal-body">
+                <p id="confirmationMessage">Are you sure you want to proceed?</p>
+            </div>
+            <div class="modal-footer">
+                <button id="confirmCancel" class="btn btn-secondary">Cancel</button>
+                <button id="confirmAction" class="btn btn-danger">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Playlist Modal -->
+    <div id="createPlaylistModal" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>Create New Playlist</h3>
+                <button class="close-modal" onclick="document.getElementById('createPlaylistModal').classList.remove('active')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="playlistName">Playlist Name *</label>
+                    <input type="text" id="playlistName" class="form-input" placeholder="Enter playlist name" required>
+                </div>
+                <div class="form-group">
+                    <label for="playlistDescription">Description (Optional)</label>
+                    <textarea id="playlistDescription" class="form-input" placeholder="Enter description" rows="3"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="cancelPlaylistBtn" class="btn btn-secondary">Cancel</button>
+                <button id="confirmCreatePlaylistBtn" class="btn btn-primary">Create</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rename Playlist Modal -->
+    <div id="renamePlaylistModal" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>Rename Playlist</h3>
+                <button class="close-modal" onclick="document.getElementById('renamePlaylistModal').classList.remove('active')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="renamePlaylistName">Playlist Name *</label>
+                    <input type="text" id="renamePlaylistName" class="form-input" placeholder="Enter new playlist name" required>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="cancelRenameBtn" class="btn btn-secondary">Cancel</button>
+                <button id="confirmRenameBtn" class="btn btn-primary">Rename</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status Messages -->
+    <div id="statusMessages" class="status-messages">
+        <!-- Dynamic status messages will appear here -->
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/utils.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/playlist.js"></script>
+    <script src="js/gallery.js"></script>
+    <script src="js/edit-mode.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>

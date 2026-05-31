@@ -1,0 +1,9 @@
+﻿# Requirements for VAMA Patreon Downloader
+
+# Core dependencies
+requests>=2.28.0
+pytz>=2022.1
+
+# Optional but recommended for better error handling
+urllib3>=1.26.0
+certifi>=2022.0.0

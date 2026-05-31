@@ -1,0 +1,42 @@
+﻿# Cookie Export Guide
+
+## How to Export Patreon Cookies
+
+1. **Open your browser and log into Patreon**
+   - Navigate to https://www.patreon.com/VAMA
+   - Make sure you're logged in and can see member-only content
+
+2. **Open Developer Tools**
+   - Press F12 or right-click  "Inspect Element"
+   - Go to the Network tab
+
+3. **Reload the page**
+   - Press F5 to reload the Patreon page
+   - Look for requests to patreon.com in the Network tab
+
+4. **Find and copy cookies**
+   - Click on any request to patreon.com
+   - In the Headers section, find "Cookie:" 
+   - Copy the entire cookie string (it will be very long)
+
+5. **Save cookies to file**
+   - Create a file named `cookies.txt` in the scripts folder
+   - Paste the cookie string (should look like: name1=value1; name2=value2; ...)
+   - Save the file
+
+## Alternative Method (Chrome)
+
+1. Go to patreon.com while logged in
+2. Press F12  Application tab  Cookies  https://www.patreon.com
+3. Copy all cookie values manually in the format: name=value; name2=value2; ...
+
+## Security Notes
+
+- Keep cookies.txt private - it contains your login session
+- Cookies expire, so you may need to re-export periodically
+- Don't share your cookies.txt file with anyone
+
+## Example cookies.txt format:
+```
+__cf_bm=abc123; session_id=xyz789; patreon_device_id=device123; _patreon_csrf=csrf456
+```

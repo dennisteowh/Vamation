@@ -1,0 +1,42 @@
+# Python bytecode and local envs
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.venv/
+venv/
+
+# Logs and runtime output
+logs/
+*.log
+app/webapp/vama_gallery.log
+webapp/vama_gallery.log
+
+# Secrets / local auth
+cookies.txt
+
+# Windows shortcuts
+*.lnk
+
+# All project data / state / storage
+/data/
+/warehouse/
+
+# Generated web artifacts
+/app/webapp/cache/
+/app/webapp/posts/*.html
+/app/webapp/posts/*_metadata.json
+/app/webapp/playlists/*.html
+/app/webapp/playlists/*_metadata.json
+/app/webapp/*/*.backup*
+/app/webapp/js/*.backup*
+
+# Legacy pre-restructure paths that may still exist locally
+/metadata/
+/webapp/cache/
+/webapp/posts/*.html
+/webapp/posts/*_metadata.json
+/webapp/playlists/*.html
+/webapp/playlists/*_metadata.json
+/webapp/*/*.backup*
+/webapp/js/*.backup*

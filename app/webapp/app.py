@@ -2010,8 +2010,15 @@ class FileOperationsManager:
     
     @staticmethod
     def delete_extracted_files(post_id: str) -> bool:
-        """Delete extracted files for a post and update metadata."""
+        """Delete extracted/generated files and downloaded ZIP files for a post, then update metadata."""
         try:
+            data = metadata_manager.load_metadata()
+            post = None
+            for p in data.get('posts', []):
+                if p.get('post_id') == post_id:
+                    post = p
+                    break
+
             # Delete extracted directory
             extracted_dir = FileOperationsManager.get_post_extracted_dir(post_id)
             if extracted_dir.exists():
@@ -2029,9 +2036,65 @@ class FileOperationsManager:
                 if file_path.exists():
                     file_path.unlink()
                     logger.info(f"Deleted post file: {file_path.name}")
+
+            zip_paths_to_delete = []
+            seen_zip_paths = set()
+
+            if post:
+                for zip_info in post.get('zip_files', []) or []:
+                    candidates = []
+                    local_filename = zip_info.get('local_filename')
+                    if local_filename:
+                        candidates.append(Config.DOWNLOADS_DIR / local_filename)
+
+                    local_path = zip_info.get('local_path')
+                    if local_path:
+                        candidates.append(Path(local_path))
+
+                    for candidate in candidates:
+                        try:
+                            resolved = candidate.resolve(strict=False)
+                        except Exception:
+                            resolved = candidate
+                        key = str(resolved)
+                        if key in seen_zip_paths:
+                            continue
+                        seen_zip_paths.add(key)
+                        zip_paths_to_delete.append(candidate)
+
+            for discovered_zip in FileOperationsManager.get_post_zip_files(post_id):
+                try:
+                    resolved = discovered_zip.resolve(strict=False)
+                except Exception:
+                    resolved = discovered_zip
+                key = str(resolved)
+                if key in seen_zip_paths:
+                    continue
+                seen_zip_paths.add(key)
+                zip_paths_to_delete.append(discovered_zip)
+
+            for zip_path in zip_paths_to_delete:
+                if zip_path.exists() and zip_path.is_file():
+                    zip_path.unlink()
+                    logger.info(f"Deleted downloaded ZIP for post {post_id}: {zip_path.name}")
             
-            # Update metadata to mark zip files as not extracted (atomically)
-            if metadata_manager.atomic_unmark_extracted(post_id):
+            metadata_updates = None
+            if post:
+                updated_zip_files = []
+                for zip_info in post.get('zip_files', []) or []:
+                    updated_zip = dict(zip_info)
+                    updated_zip['extracted'] = False
+                    updated_zip['downloaded'] = False
+                    for field in ['local_filename', 'local_path', 'download_date', 'downloaded_at', 'extraction_date']:
+                        if field in updated_zip:
+                            updated_zip[field] = None
+                    updated_zip_files.append(updated_zip)
+                metadata_updates = {'zip_files': updated_zip_files}
+
+            if metadata_updates and metadata_manager.atomic_update_post(post_id, metadata_updates):
+                logger.info(f"Updated metadata after deleting extracted/generated files and ZIPs for post {post_id}")
+                return True
+            elif metadata_updates is None and metadata_manager.atomic_unmark_extracted(post_id):
                 logger.info(f"Updated metadata after deleting extracted files for post {post_id}")
                 return True
             else:
@@ -4281,7 +4344,16 @@ def serve_playlist_cascade(playlist_id):
 @app.route('/')
 def serve_index():
     """Serve the main application."""
-    return send_from_directory(Config.WEBAPP_DIR, 'index.html')
+    return _send_webapp_file('index.html')
+
+def _send_webapp_file(filename: str):
+    response = send_from_directory(Config.WEBAPP_DIR, filename)
+    lower = filename.lower()
+    if lower.endswith(('.html', '.js', '.css')):
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+    return response
 
 @app.route('/extracted/<path:filename>')
 def serve_extracted_files(filename):
@@ -4296,7 +4368,7 @@ def serve_metadata_files(filename):
 @app.route('/<path:filename>')
 def serve_static(filename):
     """Serve static files."""
-    return send_from_directory(Config.WEBAPP_DIR, filename)
+    return _send_webapp_file(filename)
 
 # Error handlers
 @app.errorhandler(404)

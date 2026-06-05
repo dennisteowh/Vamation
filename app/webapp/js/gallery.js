@@ -16,7 +16,6 @@ class Gallery {
         this.searchQuery = '';
         this.showHidden = false;
         this.isLoading = false;
-        this.editMode = false;
         
         // DOM elements
         this.galleryGrid = null;
@@ -25,8 +24,6 @@ class Gallery {
         this.sortSelect = null;
         this.sortOrderBtn = null;
         this.itemsPerPageSelect = null;
-        this.editModeBtn = null;
-        this.showHiddenBtn = null;
         this.loadingSpinner = null;
         this.paginationInfo = null;
 
@@ -53,7 +50,6 @@ class Gallery {
         this.filterSelect = document.getElementById('filterBy');
         this.sortOrderBtn = document.getElementById('sortOrder');
         this.itemsPerPageSelect = document.getElementById('itemsPerPage');
-        this.editModeBtn = document.getElementById('editModeBtn');
         this.loadingSpinner = document.getElementById('loadingSpinner');
         this.paginationInfo = document.getElementById('paginationInfo');
     }
@@ -75,9 +71,6 @@ class Gallery {
         this.itemsPerPageSelect.addEventListener('change', (e) => {
             this.setItemsPerPage(parseInt(e.target.value));
         });
-
-        // Controls
-        this.editModeBtn.addEventListener('click', () => this.toggleEditMode());
 
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => this.handleKeyboard(e));
@@ -161,7 +154,7 @@ class Gallery {
             const params = {
                 page: this.currentPage,
                 per_page: this.itemsPerPage,
-                show_hidden: this.editMode  // Show hidden posts only in edit mode
+                show_hidden: false
             };
             
             // Add search query if present
@@ -373,18 +366,8 @@ class Gallery {
     createGalleryItem(post) {
         const item = Utils.dom.createElement('div', 'gallery-item');
         
-        // Apply hidden styling (matching cascade_template.html lines 404-413)
         if (post.display === false) {
             item.classList.add('hidden-post');
-            // In edit mode, FORCE visibility (matching cascade behavior)
-            if (this.editMode) {
-                item.style.display = 'block';
-                item.style.visibility = 'visible';
-            }
-        }
-        
-        if (this.editMode) {
-            item.classList.add('edit-mode');
         }
 
         const imageContainer = Utils.dom.createElement('div', 'gallery-image-container');
@@ -444,19 +427,25 @@ class Gallery {
         extractionProgress.appendChild(progressContainer);
         imageContainer.appendChild(extractionProgress);
         
-        // Edit overlay - add inside image container so it doesn't overlap content
-        const editOverlay = Utils.dom.createElement('div', 'edit-overlay');
-        const editControls = this.createEditControls(post);
-        editOverlay.appendChild(editControls);
-        imageContainer.appendChild(editOverlay);
-        
         // Content
         const content = Utils.dom.createElement('div', 'gallery-content');
         
+        const titleRow = Utils.dom.createElement('div', 'gallery-title-row');
         const title = Utils.dom.createElement('h3', 'gallery-title', {
             textContent: post.revised_post_name
         });
-        content.appendChild(title);
+        const renameTrigger = Utils.dom.createElement('button', 'title-rename-btn', {
+            type: 'button',
+            title: 'Rename post',
+            innerHTML: '<i class="fas fa-pen"></i>'
+        });
+        renameTrigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.startRename(post);
+        });
+        titleRow.appendChild(title);
+        titleRow.appendChild(renameTrigger);
+        content.appendChild(titleRow);
         
         const meta = Utils.dom.createElement('div', 'gallery-meta');
         
@@ -471,30 +460,47 @@ class Gallery {
         // File count and status
         if (post.zip_files && post.zip_files.length > 0) {
             const filesRow = Utils.dom.createElement('div', 'meta-row');
+            filesRow.classList.add('meta-row-actions');
             const extracted = post.zip_files.some(zip => zip.extracted);
             const statusClass = extracted ? 'extracted' : 'not-extracted';
-            const statusText = extracted ? 'Extracted' : 'Not Extracted';
+            const statusText = extracted ? 'Remove' : 'Download';
             const statusIcon = extracted ? 'fa-check' : 'fa-archive';
 
             const isFavourite = post.favourite === true;
             const heartIcon = isFavourite ? 'fas fa-heart' : 'far fa-heart';
             const heartClass = isFavourite ? 'favourite-btn active' : 'favourite-btn';
 
-            filesRow.innerHTML = `
-                <span class="meta-label">${post.zip_files.length} file(s):</span>
-                <button class="${heartClass}" data-post-id="${post.post_id}" title="${isFavourite ? 'Remove from favourites' : 'Add to favourites'}">
-                    <i class="${heartIcon}"></i>
-                </button>
-                <span class="zip-status ${statusClass}">
-                    <i class="fas ${statusIcon}"></i> ${statusText}
-                </span>
-            `;
+            const filesLabel = Utils.dom.createElement('span', 'meta-label', {
+                textContent: `${post.zip_files.length} file(s)`
+            });
+            const actions = Utils.dom.createElement('div', 'meta-actions');
+            const favouriteBtn = Utils.dom.createElement('button', heartClass, {
+                type: 'button',
+                title: isFavourite ? 'Remove from favourites' : 'Add to favourites',
+                innerHTML: `<i class="${heartIcon}"></i>`
+            });
+            const statusBtn = Utils.dom.createElement('button', `zip-status ${statusClass}`, {
+                type: 'button',
+                title: extracted ? 'Remove downloaded and extracted files' : 'Download and extract files',
+                innerHTML: `<i class="fas ${statusIcon}"></i> ${statusText}`
+            });
+            statusBtn.dataset.postId = post.post_id;
+            statusBtn.dataset.extracted = extracted ? 'true' : 'false';
 
-            const favouriteBtn = filesRow.querySelector('.favourite-btn');
+            favouriteBtn.dataset.postId = post.post_id;
             favouriteBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 this.toggleFavourite(post, favouriteBtn);
             });
+
+            statusBtn.addEventListener('click', (e) => {
+                this.handleStatusBadgeClick(e, post, statusBtn);
+            });
+
+            actions.appendChild(favouriteBtn);
+            actions.appendChild(statusBtn);
+            filesRow.appendChild(filesLabel);
+            filesRow.appendChild(actions);
 
             meta.appendChild(filesRow);
         }
@@ -511,17 +517,12 @@ class Gallery {
         
         // Event listeners
         item.addEventListener('click', (e) => {
-            // Always prevent edit mode clicks
-            if (this.editMode) {
-                e.stopPropagation();
-                return;
-            }
-            
             // Check if the click is on excluded elements
             const clickedElement = e.target;
             const isExcludedClick = clickedElement.closest('.extraction-progress') ||
-                                  clickedElement.closest('.edit-overlay') ||
-                                  clickedElement.closest('.edit-controls') ||
+                                  clickedElement.closest('.title-rename-btn') ||
+                                  clickedElement.closest('.favourite-btn') ||
+                                  clickedElement.closest('.zip-status') ||
                                   clickedElement.closest('.rename-container');
             
             if (isExcludedClick) {
@@ -543,57 +544,6 @@ class Gallery {
         item.dataset.postId = post.post_id;
         
         return item;
-    }
-
-    createEditControls(post) {
-        const controls = Utils.dom.createElement('div', 'edit-controls');
-        
-        const header = Utils.dom.createElement('div', 'edit-controls-header');
-        const title = Utils.dom.createElement('h4', 'edit-controls-title', {
-            textContent: 'Edit Post'
-        });
-        header.appendChild(title);
-        controls.appendChild(header);
-        
-        // Visibility toggle - matching cascade template logic (lines 543-559)
-        // When visible (display=true): show eye-slash icon with "Hide" text
-        // When hidden (display=false): show eye icon with "Show" text
-        const isVisible = post.display !== false; // treat undefined as visible
-        const visibilityBtn = Utils.dom.createElement('button', `edit-btn visibility ${isVisible ? 'hide-state' : 'show-state'}`, {
-            innerHTML: `<i class="fas fa-${isVisible ? 'eye-slash' : 'eye'}"></i><span class="btn-text">${isVisible ? 'Hide' : 'Show'}</span>`
-        });
-        visibilityBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            this.toggleVisibility(post);
-        });
-        controls.appendChild(visibilityBtn);
-        
-        // Extract/Delete toggle
-        const hasExtracted = post.zip_files && post.zip_files.some(zip => zip.extracted);
-        const extractBtn = Utils.dom.createElement('button', `edit-btn extract ${hasExtracted ? 'extracted' : ''}`, {
-            innerHTML: `<i class="fas fa-${hasExtracted ? 'folder-minus' : 'folder-plus'}"></i><span class="btn-text">${hasExtracted ? 'Remove Files' : 'Download Files'}</span>`
-        });
-        extractBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (hasExtracted) {
-                this.deleteExtracted(post);
-            } else {
-                this.extractFiles(post);
-            }
-        });
-        controls.appendChild(extractBtn);
-        
-        // Rename
-        const renameBtn = Utils.dom.createElement('button', 'edit-btn rename', {
-            innerHTML: '<i class="fas fa-edit"></i><span class="btn-text">Rename</span>'
-        });
-        renameBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            this.startRename(post);
-        });
-        controls.appendChild(renameBtn);
-        
-        return controls;
     }
 
     createRenameContainer(post) {
@@ -807,38 +757,6 @@ class Gallery {
         this.savePreferences();
     }
 
-    async toggleEditMode() {
-        this.editMode = !this.editMode;
-        this.editModeBtn.classList.toggle('active', this.editMode);
-        document.body.classList.toggle('edit-mode-active', this.editMode);
-        const pageBeforeToggle = this.currentPage;
-        
-        console.log('toggleEditMode - Edit mode is now:', this.editMode);
-        console.log('toggleEditMode - Body has edit-mode-active?', document.body.classList.contains('edit-mode-active'));
-        
-        // Refresh playlist cards if in playlist mode (do this BEFORE gallery render)
-        const playlistsGrid = document.getElementById('playlistsGrid');
-        const isPlaylistVisible = playlistsGrid && window.getComputedStyle(playlistsGrid).display !== 'none';
-        
-        console.log('toggleEditMode - playlist visible?', isPlaylistVisible);
-        console.log('toggleEditMode - this.app exists?', !!this.app);
-        console.log('toggleEditMode - condition result:', this.app && isPlaylistVisible);
-        
-        if (this.app && isPlaylistVisible) {
-            console.log('Calling loadPlaylistCards from toggleEditMode');
-            await this.app.loadPlaylistCards();
-            console.log('loadPlaylistCards completed');
-        } else {
-            console.log('NOT calling loadPlaylistCards - this.app:', !!this.app, 'isPlaylistVisible:', isPlaylistVisible);
-        }
-        
-        // Re-fetch posts with new show_hidden parameter without resetting pagination
-        this.currentPage = pageBeforeToggle;
-        await this.loadPosts();
-        
-        statusManager.showInfo(this.editMode ? 'Edit mode enabled - showing all posts' : 'Edit mode disabled - hidden posts now hidden');
-    }
-
     handleKeyboard(e) {
         if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
         
@@ -858,12 +776,6 @@ class Gallery {
                 break;
             case 'End':
                 this.goToPage(this.getTotalPages());
-                break;
-            case 'e':
-                if (e.ctrlKey) {
-                    e.preventDefault();
-                    this.toggleEditMode();
-                }
                 break;
             case 'f':
                 if (e.ctrlKey) {
@@ -930,7 +842,7 @@ class Gallery {
         
         if (!hasExtractedFiles) {
             console.warn('❌ Post files not extracted:', post.zip_files);
-            this.showStatus('Post files need to be downloaded first. Enable edit mode to download files.', 'warning');
+            this.showStatus('Post files need to be downloaded first. Use the status badge on the card to download files.', 'warning');
             return;
         }
         
@@ -958,122 +870,6 @@ class Gallery {
         } else {
             console.warn('❌ No images found in cascade metadata');
             this.showStatus('No images available for this post', 'warning');
-        }
-    }
-
-    async toggleVisibility(post) {
-        const isCurrentlyVisible = post.display !== false;
-        const newDisplay = !isCurrentlyVisible;
-        const oldDisplay = post.display;
-        
-        // OPTIMISTIC UPDATE: Update UI immediately for instant feedback
-        post.display = newDisplay;
-        
-        // Update in posts array immediately
-        const postIndex = this.posts.findIndex(p => p.post_id === post.post_id);
-        if (postIndex !== -1) {
-            this.posts[postIndex].display = newDisplay;
-        }
-        
-        // Update DOM element directly (INSTANT) - matching cascade behavior
-        const item = this.galleryGrid.querySelector(`[data-post-id="${post.post_id}"]`);
-        if (item) {
-            // In edit mode, ALWAYS keep item visible but apply/remove hidden-post class for styling
-            if (newDisplay === false) {
-                item.classList.add('hidden-post');
-                // Force visibility in edit mode
-                if (this.editMode) {
-                    item.style.display = 'block';
-                    item.style.visibility = 'visible';
-                }
-            } else {
-                item.classList.remove('hidden-post');
-                item.style.display = '';
-                item.style.visibility = '';
-            }
-            
-            // Update the visibility button
-            const visibilityBtn = item.querySelector('.visibility');
-            if (visibilityBtn) {
-                const icon = visibilityBtn.querySelector('i');
-                const text = visibilityBtn.querySelector('.btn-text');
-                if (newDisplay === false) {
-                    visibilityBtn.className = 'edit-btn visibility show-state';
-                    if (icon) icon.className = 'fas fa-eye';
-                    if (text) text.textContent = 'Show';
-                } else {
-                    visibilityBtn.className = 'edit-btn visibility hide-state';
-                    if (icon) icon.className = 'fas fa-eye-slash';
-                    if (text) text.textContent = 'Hide';
-                }
-            }
-        }
-        
-        // Now make the API call in the background
-        try {
-            const result = await API.metadata.updatePost(post.post_id, {
-                display: newDisplay
-            });
-            
-            if (!result.success) {
-                // API call failed - revert the changes
-                console.error('Failed to update visibility on server, reverting');
-                post.display = oldDisplay;
-                if (postIndex !== -1) {
-                    this.posts[postIndex].display = oldDisplay;
-                }
-                
-                // Revert UI
-                const item = this.galleryGrid.querySelector(`[data-post-id="${post.post_id}"]`);
-                if (item) {
-                    if (oldDisplay === false) {
-                        item.classList.add('hidden-post');
-                    } else {
-                        item.classList.remove('hidden-post');
-                        item.style.display = '';
-                        item.style.visibility = '';
-                    }
-                    
-                    // Revert button
-                    const visibilityBtn = item.querySelector('.visibility');
-                    if (visibilityBtn) {
-                        const icon = visibilityBtn.querySelector('i');
-                        const text = visibilityBtn.querySelector('.btn-text');
-                        if (oldDisplay === false) {
-                            visibilityBtn.className = 'edit-btn visibility show-state';
-                            if (icon) icon.className = 'fas fa-eye';
-                            if (text) text.textContent = 'Show';
-                        } else {
-                            visibilityBtn.className = 'edit-btn visibility hide-state';
-                            if (icon) icon.className = 'fas fa-eye-slash';
-                            if (text) text.textContent = 'Hide';
-                        }
-                    }
-                }
-                
-                this.showStatus('Failed to update visibility: ' + (result.error || 'Unknown error'), 'error');
-            }
-        } catch (error) {
-            // Network error - revert changes
-            console.error('Network error updating visibility, reverting:', error);
-            post.display = oldDisplay;
-            if (postIndex !== -1) {
-                this.posts[postIndex].display = oldDisplay;
-            }
-            
-            // Revert UI
-            const item = this.galleryGrid.querySelector(`[data-post-id="${post.post_id}"]`);
-            if (item) {
-                if (oldDisplay === false) {
-                    item.classList.add('hidden-post');
-                } else {
-                    item.classList.remove('hidden-post');
-                    item.style.display = '';
-                    item.style.visibility = '';
-                }
-            }
-            
-            this.showStatus('Failed to update visibility: ' + error.message, 'error');
         }
     }
 
@@ -1231,24 +1027,29 @@ class Gallery {
 
     async deleteExtracted(post) {
         const confirmed = confirm(
-            'Remove downloaded files from this post?\n\nThis will remove all extracted content (HTML, JSON, media files). The original zip file will remain.'
+            'Undo download/extraction for this post?\n\nThis will remove extracted content, generated HTML/JSON, and downloaded ZIP files for this post.'
         );
         
         if (!confirmed) return;
         
         try {
             this.setExtractionLoading(post, true, 'unextract');
-            this.showStatus('Removing generated files...', 'info');
+            this.showStatus('Removing extracted content and ZIP files...', 'info');
             
             const result = await API.delete(`/posts/${post.post_id}/files`);
             
             if (result.success) {
                 // Update post data
                 if (post.zip_files) {
-                    post.zip_files.forEach(zip => zip.extracted = false);
+                    post.zip_files.forEach(zip => {
+                        zip.extracted = false;
+                        zip.downloaded = false;
+                        zip.local_filename = null;
+                        zip.local_path = null;
+                    });
                 }
                 this.updatePostInGrid(post);
-                this.showStatus('Generated files removed successfully', 'success');
+                this.showStatus('Downloaded and extracted files removed successfully', 'success');
             } else {
                 throw new Error(result.error);
             }
@@ -1257,6 +1058,22 @@ class Gallery {
             this.showStatus(`Failed to remove files: ${error.message}`, 'error');
         } finally {
             this.setExtractionLoading(post, false);
+        }
+    }
+
+    async handleStatusBadgeClick(event, post, buttonElement) {
+        event.preventDefault();
+        event.stopPropagation();
+
+        if (!buttonElement || buttonElement.disabled) return;
+
+        const isExtracted = (buttonElement.dataset.extracted === 'true') ||
+            (Array.isArray(post.zip_files) && post.zip_files.some(zip => zip.extracted));
+
+        if (isExtracted) {
+            await this.deleteExtracted(post);
+        } else {
+            await this.extractFiles(post);
         }
     }
     
@@ -1268,7 +1085,7 @@ class Gallery {
         const progressCircle = item.querySelector('.progress-circle');
         const progressText = item.querySelector('.progress-text');
         const progressDetails = item.querySelector('.progress-details');
-        const extractBtn = item.querySelector('.edit-btn.extract');
+        const extractBtn = item.querySelector('.zip-status');
         
         if (loading) {
             // Show progress overlay
@@ -1298,7 +1115,8 @@ class Gallery {
             // Disable extract button
             if (extractBtn) {
                 extractBtn.disabled = true;
-                extractBtn.style.opacity = '0.5';
+                extractBtn.classList.add('loading');
+                extractBtn.style.opacity = '0.65';
             }
         } else {
             // Hide progress overlay
@@ -1309,11 +1127,14 @@ class Gallery {
             // Re-enable extract button and update its state
             if (extractBtn) {
                 extractBtn.disabled = false;
+                extractBtn.classList.remove('loading');
                 extractBtn.style.opacity = '1';
                 
                 const hasExtracted = post.zip_files && post.zip_files.some(zip => zip.extracted);
-                extractBtn.className = `edit-btn extract ${hasExtracted ? 'extracted' : ''}`;
-                extractBtn.innerHTML = `<i class="fas fa-${hasExtracted ? 'folder-minus' : 'folder-plus'}"></i><span class="btn-text">${hasExtracted ? 'Remove Files' : 'Download Files'}</span>`;
+                extractBtn.className = `zip-status ${hasExtracted ? 'extracted' : 'not-extracted'}`;
+                extractBtn.dataset.extracted = hasExtracted ? 'true' : 'false';
+                extractBtn.innerHTML = `<i class="fas ${hasExtracted ? 'fa-check' : 'fa-archive'}"></i> ${hasExtracted ? 'Remove' : 'Download'}`;
+                extractBtn.title = hasExtracted ? 'Remove downloaded and extracted files' : 'Download and extract files';
             }
         }
     }
@@ -1376,11 +1197,6 @@ class Gallery {
             // Update the item with new data
             const newItem = this.createGalleryItem(post);
             item.parentNode.replaceChild(newItem, item);
-            
-            // If edit mode is active, ensure the new item reflects that
-            if (this.editMode) {
-                newItem.classList.add('edit-mode');
-            }
             
             // Also update the post in our posts array
             const postIndex = this.posts.findIndex(p => p.post_id === post.post_id);

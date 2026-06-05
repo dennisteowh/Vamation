@@ -61,9 +61,7 @@ class VamaGalleryApp {
 
         // Initialize Gallery
         this.gallery = new Gallery(this);
-        console.log('✓ Gallery initialized');        // Connect EditModeManager with Gallery
-        editModeManager.setGallery(this.gallery);
-        console.log('✓ Edit mode manager connected');
+        console.log('✓ Gallery initialized');
         
         // Initialize Playlists
         this.initializePlaylists();
@@ -203,13 +201,6 @@ class VamaGalleryApp {
                     this.focusSearch();
                     break;
                     
-                case 'e': // Toggle edit mode
-                    if (!e.shiftKey && this.gallery) {
-                        e.preventDefault();
-                        this.gallery.toggleEditMode();
-                    }
-                    break;
-                    
                 case 'r': // Refresh
                     e.preventDefault();
                     this.refreshData();
@@ -321,7 +312,6 @@ class VamaGalleryApp {
     showKeyboardShortcuts() {
         const shortcuts = [
             'Ctrl+K: Focus search',
-            'Ctrl+E: Toggle edit mode',
             'Ctrl+R: Refresh data',
             'Ctrl+H: Show help',
             '?: Show this list',

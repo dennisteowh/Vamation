@@ -218,7 +218,7 @@ except ImportError:
 extraction_queue_manager = None
 
 try:
-    from PIL import Image, ImageOps
+    from PIL import Image, ImageOps, ImageSequence
     PIL_AVAILABLE = True
 except ImportError:
     PIL_AVAILABLE = False
@@ -338,6 +338,7 @@ class Config:
     TEMPLATES_DIR = TEMPLATES_DIR
     
     THUMBNAILS_DIR = THUMBNAILS_DIR
+    PROFILE_PREVIEWS_DIR = THUMBNAILS_DIR / 'profile-previews'
     
     # Server configuration - Local only
     HOST = '127.0.0.1'
@@ -346,6 +347,9 @@ class Config:
     
     # File processing
     MAX_THUMBNAIL_SIZE = (400, 400)
+    PROFILE_PREVIEW_SIZE = (480, 720)
+    PROFILE_PREVIEW_FORMAT = 'WEBP'
+    PROFILE_PREVIEW_QUALITY = 82
     ALLOWED_IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'}
     MAX_CONCURRENT_EXTRACTIONS = int(os.environ.get('MAX_CONCURRENT_EXTRACTIONS', '2'))
     EXTRACTION_STATUS_TTL_SECONDS = int(os.environ.get('EXTRACTION_STATUS_TTL_SECONDS', '300'))
@@ -936,17 +940,217 @@ class MetadataManager:
     def __init__(self):
         self.json_path = Config.METADATA_JSON
         self.excel_path = Config.METADATA_EXCEL
-        self._lock = threading.Lock()
-    
-    def load_metadata(self) -> Dict[str, Any]:
+        self._lock = threading.RLock()
+        self._cache_lock = threading.Lock()
+        self._cached_metadata = None
+        self._cached_mtime_ns = None
+        self._cached_size = None
+        self._gallery_index = []
+        self._gallery_index_signature = None
+        self._warm_status = {
+            'state': 'idle',
+            'started_at': None,
+            'finished_at': None,
+            'duration_ms': None,
+            'error': None,
+        }
+
+    def invalidate_cache(self) -> None:
+        with self._cache_lock:
+            self._cached_metadata = None
+            self._cached_mtime_ns = None
+            self._cached_size = None
+            self._gallery_index = []
+            self._gallery_index_signature = None
+
+    def get_cache_status(self) -> Dict[str, Any]:
+        with self._cache_lock:
+            return {
+                'loaded': self._cached_metadata is not None,
+                'mtime_ns': self._cached_mtime_ns,
+                'size': self._cached_size,
+                'gallery_index_loaded': bool(self._gallery_index),
+                'gallery_index_count': len(self._gallery_index),
+                'warm_status': dict(self._warm_status),
+            }
+
+    def _build_gallery_index(self, data: Dict[str, Any]) -> List[Dict[str, Any]]:
+        posts = data.get('posts', []) or []
+        index = []
+
+        for post in posts:
+            post_id = post.get('post_id')
+            if not post_id:
+                continue
+
+            zip_files_raw = post.get('zip_files', []) or []
+            profile_images_raw = post.get('profile_images', []) or []
+            if not zip_files_raw or not profile_images_raw:
+                continue
+
+            zip_files = [{
+                'filename': zf.get('filename'),
+                'extracted': zf.get('extracted', False),
+                'downloaded': zf.get('downloaded', False),
+            } for zf in zip_files_raw]
+            extracted = any(zf.get('extracted', False) for zf in zip_files)
+
+            cascade_metadata_raw = post.get('cascade_metadata', {}) if isinstance(post.get('cascade_metadata'), dict) else {}
+            cascade_images_raw = cascade_metadata_raw.get('images', []) if isinstance(cascade_metadata_raw, dict) else []
+            cascade_images = []
+            if isinstance(cascade_images_raw, list) and cascade_images_raw:
+                first_image = cascade_images_raw[0]
+                if isinstance(first_image, dict):
+                    cascade_images = [{
+                        'filename': first_image.get('filename'),
+                        'visible': first_image.get('visible', True),
+                        'deleted': first_image.get('deleted', False),
+                    }]
+
+            image_count = len(cascade_images_raw) if cascade_images_raw else int(cascade_metadata_raw.get('visible_images') or cascade_metadata_raw.get('total_images') or 0)
+            description_raw = post.get('description', '') or ''
+            description = description_raw[:280] + '...' if len(description_raw) > 280 else description_raw
+
+            index.append({
+                'post_id': post_id,
+                'revised_post_name': post.get('revised_post_name'),
+                'post_name': post.get('post_name'),
+                'post_date': post.get('post_date'),
+                'description': description,
+                'display': post.get('display', True),
+                'favourite': post.get('favourite', False),
+                'profile_images': profile_images_raw[:1] if profile_images_raw else [],
+                'zip_files': zip_files,
+                'extracted': extracted,
+                'image_count': image_count,
+                'cascade_metadata': {
+                    'images': cascade_images,
+                    'total_images': cascade_metadata_raw.get('total_images'),
+                    'visible_images': cascade_metadata_raw.get('visible_images'),
+                },
+            })
+
+        return index
+
+    def _ensure_gallery_index(self, data: Optional[Dict[str, Any]] = None, signature=None) -> List[Dict[str, Any]]:
+        with self._cache_lock:
+            if self._gallery_index_signature == signature and self._gallery_index:
+                return list(self._gallery_index)
+
+        if data is None:
+            data = self.load_metadata()
+            signature = self._get_file_signature()
+
+        started_at = time.perf_counter()
+        index = self._build_gallery_index(data)
+        duration_ms = (time.perf_counter() - started_at) * 1000
+
+        with self._cache_lock:
+            self._gallery_index = index
+            self._gallery_index_signature = signature
+
+        logger.info('Gallery index rebuilt in %.1fms with %s posts', duration_ms, len(index))
+        return list(index)
+
+    def get_gallery_index(self, force_reload: bool = False) -> List[Dict[str, Any]]:
+        data = self.load_metadata(force_reload=force_reload)
+        signature = self._get_file_signature()
+        if force_reload:
+            with self._cache_lock:
+                self._gallery_index = []
+                self._gallery_index_signature = None
+        return self._ensure_gallery_index(data=data, signature=signature)
+
+    def _get_file_signature(self):
+        stat = self.json_path.stat()
+        return stat.st_mtime_ns, stat.st_size
+
+    def _read_metadata_from_disk(self) -> Dict[str, Any]:
+        with open(self.json_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+
+    def _store_cache(self, data: Dict[str, Any], mtime_ns=None, size=None) -> Dict[str, Any]:
+        if mtime_ns is None or size is None:
+            mtime_ns, size = self._get_file_signature()
+        with self._cache_lock:
+            self._cached_metadata = data
+            self._cached_mtime_ns = mtime_ns
+            self._cached_size = size
+        return data
+
+    def load_metadata(self, force_reload: bool = False) -> Dict[str, Any]:
         """Load metadata from JSON file."""
         try:
-            with open(self.json_path, 'r', encoding='utf-8') as f:
-                return json.load(f)
+            mtime_ns, size = self._get_file_signature()
+
+            if not force_reload:
+                with self._cache_lock:
+                    if (
+                        self._cached_metadata is not None and
+                        self._cached_mtime_ns == mtime_ns and
+                        self._cached_size == size
+                    ):
+                        return self._cached_metadata
+
+            with self._lock:
+                if not force_reload:
+                    with self._cache_lock:
+                        if (
+                            self._cached_metadata is not None and
+                            self._cached_mtime_ns == mtime_ns and
+                            self._cached_size == size
+                        ):
+                            return self._cached_metadata
+
+                data = self._read_metadata_from_disk()
+                self._store_cache(data, mtime_ns=mtime_ns, size=size)
+                self._ensure_gallery_index(data=data, signature=(mtime_ns, size))
+                return data
         except Exception as e:
             logger.error(f"Failed to load metadata: {e}")
             return {"posts": [], "summary": {}}
-    
+
+    def warm_cache(self, force_reload: bool = False) -> Dict[str, Any]:
+        started_at = datetime.utcnow().isoformat() + 'Z'
+        started_perf = time.perf_counter()
+        with self._cache_lock:
+            self._warm_status = {
+                'state': 'warming',
+                'started_at': started_at,
+                'finished_at': None,
+                'duration_ms': None,
+                'error': None,
+            }
+
+        try:
+            data = self.load_metadata(force_reload=force_reload)
+            self.get_gallery_index(force_reload=force_reload)
+            duration_ms = (time.perf_counter() - started_perf) * 1000
+            finished_at = datetime.utcnow().isoformat() + 'Z'
+            with self._cache_lock:
+                self._warm_status = {
+                    'state': 'ready',
+                    'started_at': started_at,
+                    'finished_at': finished_at,
+                    'duration_ms': round(duration_ms, 1),
+                    'error': None,
+                }
+            logger.info("Metadata cache warm-up completed in %.1fms", duration_ms)
+            return data
+        except Exception as e:
+            duration_ms = (time.perf_counter() - started_perf) * 1000
+            finished_at = datetime.utcnow().isoformat() + 'Z'
+            with self._cache_lock:
+                self._warm_status = {
+                    'state': 'error',
+                    'started_at': started_at,
+                    'finished_at': finished_at,
+                    'duration_ms': round(duration_ms, 1),
+                    'error': str(e),
+                }
+            logger.error(f"Metadata cache warm-up failed: {e}")
+            raise
+
     def save_metadata(self, data: Dict[str, Any]) -> bool:
         """Save metadata to JSON file, then generate Excel using MetadataHandler."""
         with self._lock:
@@ -957,6 +1161,7 @@ class MetadataManager:
                 
                 # Save JSON with atomic write (source of truth)
                 safe_save_json(data, self.json_path, create_backup=True)
+                self._store_cache(data)
                 
                 # Generate Excel using MetadataHandler
                 if PANDAS_AVAILABLE:
@@ -1006,6 +1211,7 @@ class MetadataManager:
                     data['summary']['last_update'] = datetime.now().isoformat()
                 
                 safe_save_json(data, self.json_path, create_backup=True)
+                self._store_cache(data)
                 
                 # Excel generation in background to avoid blocking multiple requests
                 if PANDAS_AVAILABLE:
@@ -1049,6 +1255,7 @@ class MetadataManager:
                     data['summary']['last_update'] = datetime.now().isoformat()
                 
                 safe_save_json(data, self.json_path, create_backup=True)
+                self._store_cache(data)
                 
                 logger.info(f"Post {post_id} images updated successfully")
                 return True
@@ -1087,6 +1294,7 @@ class MetadataManager:
                         break
                 
                 safe_save_json(data, self.json_path, create_backup=True)
+                self._store_cache(data)
                 
                 if PANDAS_AVAILABLE:
                     threading.Thread(target=self._generate_excel_background, daemon=True).start()
@@ -1113,6 +1321,7 @@ class MetadataManager:
                         break
                 
                 safe_save_json(data, self.json_path, create_backup=True)
+                self._store_cache(data)
                 
                 if PANDAS_AVAILABLE:
                     threading.Thread(target=self._generate_excel_background, daemon=True).start()
@@ -1131,6 +1340,7 @@ class MetadataManager:
                 data['posts'] = [p for p in data['posts'] if p.get('post_id') != post_id]
                 
                 safe_save_json(data, self.json_path, create_backup=True)
+                self._store_cache(data)
                 
                 if PANDAS_AVAILABLE:
                     threading.Thread(target=self._generate_excel_background, daemon=True).start()
@@ -2463,6 +2673,173 @@ class ExtractionQueueManager:
 class ImageManager:
     """Handles image serving and thumbnail generation."""
     
+    def __init__(self):
+        self._profile_preview_lock = threading.Lock()
+        self._profile_backfill_started = False
+        self._profile_preview_jobs = set()
+
+    @staticmethod
+    def _profile_preview_path_for_source(image_path: Path) -> Path:
+        return Config.PROFILE_PREVIEWS_DIR / f"{image_path.stem}_{Config.PROFILE_PREVIEW_SIZE[0]}x{Config.PROFILE_PREVIEW_SIZE[1]}.webp"
+
+    @staticmethod
+    def _normalise_profile_preview_source(image_path: Path):
+        if not PIL_AVAILABLE:
+            return None
+
+        with Image.open(image_path) as img:
+            try:
+                img.seek(0)
+            except Exception:
+                pass
+
+            frame = img.copy()
+            frame = ImageOps.exif_transpose(frame)
+            if frame.mode not in ('RGB', 'RGBA'):
+                frame = frame.convert('RGBA' if 'A' in frame.getbands() else 'RGB')
+            if frame.mode == 'RGBA':
+                background = Image.new('RGB', frame.size, (255, 255, 255))
+                background.paste(frame, mask=frame.getchannel('A'))
+                frame = background
+            elif frame.mode != 'RGB':
+                frame = frame.convert('RGB')
+            return frame
+
+    @classmethod
+    def generate_profile_preview(cls, image_path: Path) -> Optional[Path]:
+        if not PIL_AVAILABLE or not image_path.exists():
+            return None
+
+        preview_path = cls._profile_preview_path_for_source(image_path)
+        try:
+            Config.PROFILE_PREVIEWS_DIR.mkdir(parents=True, exist_ok=True)
+
+            if preview_path.exists() and preview_path.stat().st_mtime >= image_path.stat().st_mtime:
+                return preview_path
+
+            frame = cls._normalise_profile_preview_source(image_path)
+            if frame is None:
+                return None
+
+            target_w, target_h = Config.PROFILE_PREVIEW_SIZE
+            fitted = ImageOps.fit(frame, (target_w, target_h), method=Image.Resampling.LANCZOS, centering=(0.5, 0.2))
+            fitted.save(
+                preview_path,
+                format=Config.PROFILE_PREVIEW_FORMAT,
+                quality=Config.PROFILE_PREVIEW_QUALITY,
+                method=6,
+                optimize=True,
+            )
+            return preview_path
+        except Exception as e:
+            logger.warning(f"Failed to generate profile preview for {image_path.name}: {e}")
+            return None
+
+    def get_profile_preview_path(self, post_id: str) -> Optional[Path]:
+        image_path = self.get_profile_image_path(post_id)
+        if not image_path or not image_path.exists():
+            return None
+
+        with self._profile_preview_lock:
+            preview_path = self.generate_profile_preview(image_path)
+        return preview_path if preview_path and preview_path.exists() else None
+
+    def get_existing_profile_preview_path(self, post_id: str) -> Optional[Path]:
+        image_path = self.get_profile_image_path(post_id)
+        if not image_path or not image_path.exists():
+            return None
+        preview_path = self._profile_preview_path_for_source(image_path)
+        if preview_path.exists() and preview_path.stat().st_mtime >= image_path.stat().st_mtime:
+            return preview_path
+        return None
+
+    def ensure_profile_preview_background(self, post_id: str) -> bool:
+        image_path = self.get_profile_image_path(post_id)
+        if not image_path or not image_path.exists():
+            return False
+
+        preview_path = self._profile_preview_path_for_source(image_path)
+        if preview_path.exists() and preview_path.stat().st_mtime >= image_path.stat().st_mtime:
+            return False
+
+        with self._profile_preview_lock:
+            if post_id in self._profile_preview_jobs:
+                return False
+            self._profile_preview_jobs.add(post_id)
+
+        def _run():
+            try:
+                self.generate_profile_preview(image_path)
+            except Exception as e:
+                logger.warning(f"Background profile preview generation failed for {post_id}: {e}")
+            finally:
+                with self._profile_preview_lock:
+                    self._profile_preview_jobs.discard(post_id)
+
+        threading.Thread(target=_run, name=f'profile-preview-{post_id}', daemon=True).start()
+        return True
+
+    def backfill_profile_previews(self, limit: Optional[int] = None) -> Dict[str, Any]:
+        generated = 0
+        skipped = 0
+        errors = 0
+        Config.PROFILE_PREVIEWS_DIR.mkdir(parents=True, exist_ok=True)
+
+        files = sorted(
+            [p for p in Config.PROFILE_IMAGES_DIR.iterdir() if p.is_file() and p.suffix.lower() in Config.ALLOWED_IMAGE_EXTENSIONS],
+            key=lambda p: p.stat().st_mtime,
+            reverse=True,
+        )
+
+        for idx, image_path in enumerate(files):
+            if limit is not None and idx >= limit:
+                break
+
+            preview_path = self._profile_preview_path_for_source(image_path)
+            try:
+                if preview_path.exists() and preview_path.stat().st_mtime >= image_path.stat().st_mtime:
+                    skipped += 1
+                    continue
+                with self._profile_preview_lock:
+                    result = self.generate_profile_preview(image_path)
+                if result and result.exists():
+                    generated += 1
+                else:
+                    errors += 1
+            except Exception:
+                errors += 1
+
+        return {
+            'generated': generated,
+            'skipped': skipped,
+            'errors': errors,
+            'scanned': min(len(files), limit) if limit is not None else len(files),
+        }
+
+    def start_profile_preview_backfill(self, limit: Optional[int] = None) -> None:
+        with self._profile_preview_lock:
+            if self._profile_backfill_started:
+                return
+            self._profile_backfill_started = True
+
+        def _run():
+            started = time.perf_counter()
+            try:
+                stats = self.backfill_profile_previews(limit=limit)
+                elapsed_ms = (time.perf_counter() - started) * 1000
+                logger.info(
+                    "Profile preview backfill completed in %.1fms (generated=%s, skipped=%s, errors=%s, scanned=%s)",
+                    elapsed_ms,
+                    stats['generated'],
+                    stats['skipped'],
+                    stats['errors'],
+                    stats['scanned'],
+                )
+            except Exception as e:
+                logger.warning(f"Profile preview backfill failed: {e}")
+
+        threading.Thread(target=_run, name='profile-preview-backfill', daemon=True).start()
+    
     @staticmethod
     def get_profile_image_path(post_id: str) -> Optional[Path]:
         """Get the profile image path for a post."""
@@ -2572,6 +2949,37 @@ if _should_start_queue_manager():
 else:
     logger.info("Skipping extraction queue manager startup in reloader parent process")
 
+def _should_warm_metadata_cache() -> bool:
+    if os.environ.get('VAMATION_DISABLE_BACKGROUND_INIT') == '1':
+        return False
+    if not Config.DEBUG:
+        return True
+    return os.environ.get('WERKZEUG_RUN_MAIN') == 'true'
+
+def _start_metadata_cache_warmup() -> None:
+    if not _should_warm_metadata_cache():
+        logger.info("Skipping metadata cache warm-up in reloader parent process")
+        return
+
+    def _warm():
+        try:
+            metadata_manager.warm_cache(force_reload=False)
+        except Exception:
+            pass
+
+    threading.Thread(target=_warm, name='metadata-cache-warmup', daemon=True).start()
+
+_start_metadata_cache_warmup()
+
+def _start_profile_preview_backfill() -> None:
+    if os.environ.get('VAMATION_DISABLE_BACKGROUND_INIT') == '1':
+        return
+    if Config.DEBUG and os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
+        return
+    image_manager.start_profile_preview_backfill()
+
+_start_profile_preview_backfill()
+
 # API Routes
     
 # API Routes
@@ -2592,6 +3000,7 @@ def api_status():
     """Get API status and metadata summary."""
     data = metadata_manager.load_metadata()
     posts = data.get('posts', [])
+    cache_status = metadata_manager.get_cache_status()
     
     return jsonify({
         "status": "healthy",
@@ -2607,6 +3016,11 @@ def api_status():
             "pandas_available": PANDAS_AVAILABLE,
             "cors_available": CORS_AVAILABLE,
             "pil_available": PIL_AVAILABLE
+        },
+        "metadata_cache": {
+            "loaded": cache_status.get('loaded', False),
+            "size_bytes": cache_status.get('size'),
+            "warm_status": cache_status.get('warm_status', {}),
         }
     })
 
@@ -2614,8 +3028,11 @@ def api_status():
 @app.route('/api/metadata/posts')
 def get_posts():
     """Get all posts with filtering, sorting, and pagination."""
+    request_started_at = time.perf_counter()
+    index_started_at = time.perf_counter()
+    posts = metadata_manager.get_gallery_index()
+    index_prep_ms = (time.perf_counter() - index_started_at) * 1000
     data = metadata_manager.load_metadata()
-    posts = data.get('posts', [])
     
     # Apply visibility filter
     show_hidden = request.args.get('show_hidden', 'false').lower() == 'true'
@@ -2697,34 +3114,23 @@ def get_posts():
     end = start + per_page
     posts_page = posts[start:end]
     
-    # Add extraction status to each post
-    slim_posts = []
-    for post in posts_page:
-        post_id = post.get('post_id')
-        if post_id:
-            # Use metadata-based extraction status
-            zip_files = post.get('zip_files', []) or []
-            extracted = any(zip_file.get('extracted', False) for zip_file in zip_files)
-            cascade_metadata = post.get('cascade_metadata', {}) if isinstance(post.get('cascade_metadata'), dict) else {}
-            cascade_images = cascade_metadata.get('images', []) if isinstance(cascade_metadata, dict) else []
-            image_count = len(cascade_images) if cascade_images else int(cascade_metadata.get('visible_images') or cascade_metadata.get('total_images') or 0)
-            profile_images = post.get('profile_images', []) or []
-            profile_images = profile_images[:1] if profile_images else []
-            zip_files = [{'filename': zf.get('filename'), 'extracted': zf.get('extracted', False), 'downloaded': zf.get('downloaded', False)} for zf in zip_files]
-            description = post.get('description', '')[:280] + '...' if len(post.get('description', '')) > 280 else post.get('description', '')
-            slim_post = {
-                'post_id': post_id,
-                'revised_post_name': post.get('revised_post_name'),
-                'post_name': post.get('post_name'),
-                'post_date': post.get('post_date'),
-                'description': description,
-                'profile_images': profile_images,
-                'zip_files': zip_files,
-                'extracted': extracted,
-                'image_count': image_count,
-            }
-            slim_posts.append(slim_post)
+    slim_posts = [dict(post) for post in posts_page]
     
+    total_request_ms = (time.perf_counter() - request_started_at) * 1000
+    logger.info(
+        "GET /api/posts completed in %.1fms (index %.1fms, total_posts=%s, page_posts=%s, page=%s, per_page=%s, search=%s, filter=%s, sort=%s:%s)",
+        total_request_ms,
+        index_prep_ms,
+        len(data.get('posts', [])),
+        len(slim_posts),
+        page,
+        per_page,
+        bool(search),
+        filter_by or 'all',
+        sort_by,
+        sort_order,
+    )
+
     return jsonify({
         "posts": slim_posts,
         "pagination": {
@@ -2927,12 +3333,33 @@ def get_post_images(post_id):
 
 @app.route('/api/images/profile/<post_id>')
 def serve_profile_image(post_id):
-    """Serve profile image for a post."""
+    """Serve the original profile image for a post."""
     image_path = image_manager.get_profile_image_path(post_id)
     if not image_path or not image_path.exists():
         abort(404)
     
-    return send_file(image_path)
+    response = send_file(image_path, conditional=True, max_age=3600)
+    response.headers['Cache-Control'] = 'public, max-age=3600, stale-while-revalidate=86400'
+    return response
+
+@app.route('/api/images/profile-preview/<post_id>')
+def serve_profile_preview(post_id):
+    """Serve gallery preview image for a post, falling back to the original while generating in background."""
+    image_path = image_manager.get_profile_image_path(post_id)
+    if not image_path or not image_path.exists():
+        abort(404)
+
+    preview_path = image_manager.get_existing_profile_preview_path(post_id)
+    if preview_path and preview_path.exists():
+        response = send_file(preview_path, conditional=True, max_age=86400)
+        response.headers['Cache-Control'] = 'public, max-age=86400, stale-while-revalidate=604800'
+        return response
+
+    image_manager.ensure_profile_preview_background(post_id)
+    response = send_file(image_path, conditional=True, max_age=300)
+    response.headers['Cache-Control'] = 'public, max-age=300, stale-while-revalidate=3600'
+    response.headers['X-Vamation-Preview-Status'] = 'fallback-original'
+    return response
 
 @app.route('/api/images/content/<post_id>/<path:filename>')
 def serve_content_image(post_id, filename):

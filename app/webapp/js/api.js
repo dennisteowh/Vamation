@@ -155,33 +155,13 @@ const API = {
      * Image operations
      */
     images: {
-        // Get profile image
+        // Get profile image preview for gallery cards
         getProfileImageUrl(postId) {
-            return `${API.baseUrl}/images/profile/${postId}`;
+            return `${API.baseUrl}/images/profile-preview/${postId}`;
         },
 
-        // Get content image
-        getContentImageUrl(postId, filename) {
-            return `${API.baseUrl}/images/content/${postId}/${encodeURIComponent(filename)}`;
-        },
-
-        // Get thumbnail
-        getThumbnailUrl(postId, filename, size = 'medium') {
-            return `${API.baseUrl}/images/thumbnail/${postId}/${encodeURIComponent(filename)}?size=${size}`;
-        },
-
-        // Preload image
-        async preload(url) {
-            return Utils.image.preload(url);
-        }
-    },
-
-    /**
-     * Image operations
-     */
-    images: {
-        // Get profile image
-        getProfileImageUrl(postId) {
+        // Get original profile image
+        getOriginalProfileImageUrl(postId) {
             return `${API.baseUrl}/images/profile/${postId}`;
         },
 

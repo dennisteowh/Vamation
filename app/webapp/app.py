@@ -1374,7 +1374,80 @@ class PlaylistManager:
         self.playlist_metadata_path = Config.PLAYLIST_METADATA_JSON
         self._lock = threading.Lock()
         self._ensure_playlist_metadata()
-    
+
+    @staticmethod
+    def _playlist_template_path(name: str) -> Path:
+        return Config.WEBAPP_DIR / 'templates' / name
+
+    @staticmethod
+    def _image_exists(image: Dict[str, Any]) -> bool:
+        post_id = str(image.get('post_id') or '')
+        filename = image.get('filename') or ''
+        if not post_id or not filename:
+            return False
+        return (Config.EXTRACTED_DIR / post_id / filename).exists()
+
+    @staticmethod
+    def _should_drop_legacy_image(image: Dict[str, Any]) -> bool:
+        filename = (image.get('filename') or '').lower()
+        return filename.endswith('.png') and '_enhanced' in filename
+
+    def _normalize_playlist(self, playlist: Dict[str, Any], drop_missing: bool = False) -> Dict[str, int]:
+        images = playlist.get('images', []) or []
+        cleaned = []
+        removed_legacy = 0
+        removed_missing = 0
+
+        for image in images:
+            if self._should_drop_legacy_image(image):
+                removed_legacy += 1
+                continue
+            if drop_missing and not self._image_exists(image):
+                removed_missing += 1
+                continue
+            cleaned.append(image)
+
+        for idx, image in enumerate(cleaned):
+            image['custom_order'] = idx
+
+        playlist['images'] = cleaned
+        playlist['total_images'] = len(cleaned)
+        playlist['cover_image'] = (
+            {'post_id': cleaned[0].get('post_id'), 'filename': cleaned[0].get('filename')}
+            if cleaned else None
+        )
+        playlist['modified_date'] = datetime.now().isoformat()
+        return {
+            'removed_legacy': removed_legacy,
+            'removed_missing': removed_missing,
+            'total_images': len(cleaned),
+        }
+
+    def repair_and_regenerate_all(self, drop_missing: bool = True) -> Dict[str, Any]:
+        with self._lock:
+            data = self._load_playlist_metadata()
+            results = []
+            generated = 0
+            for playlist in data.get('playlists', []):
+                stats = self._normalize_playlist(playlist, drop_missing=drop_missing)
+                ok = self._generate_html_files(playlist['playlist_id'], playlist)
+                if ok:
+                    generated += 1
+                results.append({
+                    'playlist_id': playlist.get('playlist_id'),
+                    'name': playlist.get('name'),
+                    'generated': ok,
+                    **stats,
+                })
+
+            self._save_playlist_metadata(data)
+            return {
+                'success': True,
+                'playlists': results,
+                'generated': generated,
+                'total': len(results),
+            }
+
     def _ensure_playlist_metadata(self):
         """Ensure playlist metadata file exists with proper structure."""
         if not self.playlist_metadata_path.exists():
@@ -1649,6 +1722,7 @@ class PlaylistManager:
     def _generate_html_files(self, playlist_id: str, playlist: Dict[str, Any]) -> bool:
         """Generate all HTML files for a playlist."""
         try:
+            self._normalize_playlist(playlist, drop_missing=False)
             # Generate single view
             single_html = self._create_single_view(playlist_id, playlist)
             single_path = Config.PLAYLISTS_DIR / f"{playlist_id}.html"
@@ -1683,7 +1757,7 @@ class PlaylistManager:
     
     def _create_single_view(self, playlist_id: str, playlist: Dict[str, Any]) -> str:
         """Create single view HTML for playlist."""
-        template_path = Path('templates') / 'playlist_template.html'
+        template_path = self._playlist_template_path('playlist_template.html')
         with open(template_path, 'r', encoding='utf-8') as f:
             template = f.read()
         
@@ -1701,7 +1775,7 @@ class PlaylistManager:
     
     def _create_cascade_view(self, playlist_id: str, playlist: Dict[str, Any]) -> str:
         """Create cascade view HTML for playlist."""
-        template_path = Path('templates') / 'playlist_cascade_template.html'
+        template_path = self._playlist_template_path('playlist_cascade_template.html')
         with open(template_path, 'r', encoding='utf-8') as f:
             template = f.read()
         
@@ -3286,14 +3360,15 @@ def create_playlist():
     if not name:
         return jsonify({"error": "Playlist name cannot be empty"}), 400
     
-    playlist = playlist_manager.create_playlist(name, description)
-    if playlist:
+    result = playlist_manager.create_playlist(name, description)
+    if result.get('success'):
         return jsonify({
+            "success": True,
             "message": "Playlist created successfully",
-            "playlist": playlist
+            "playlist": result.get('playlist')
         }), 201
     else:
-        return jsonify({"error": "Failed to create playlist"}), 500
+        return jsonify({"error": result.get('error', 'Failed to create playlist')}), 500
 
 @app.route('/api/playlists/<playlist_id>', methods=['GET'])
 def get_playlist(playlist_id):
@@ -3324,10 +3399,12 @@ def update_playlist_route(playlist_id):
 @app.route('/api/playlists/<playlist_id>', methods=['DELETE'])
 def delete_playlist(playlist_id):
     """Delete a playlist and all its files."""
-    if playlist_manager.delete_playlist(playlist_id):
-        return jsonify({"message": "Playlist deleted successfully"})
+    result = playlist_manager.delete_playlist(playlist_id)
+    if result.get('success'):
+        return jsonify({"success": True, "message": "Playlist deleted successfully"})
     else:
-        return jsonify({"error": "Failed to delete playlist"}), 500
+        status = 404 if result.get('error') == 'Playlist not found' else 500
+        return jsonify({"error": result.get('error', 'Failed to delete playlist')}), status
 
 @app.route('/api/playlists/<playlist_id>/images', methods=['POST'])
 def add_images_to_playlist(playlist_id):
@@ -3354,9 +3431,10 @@ def delete_image_from_playlist(playlist_id, filename):
     
     result = playlist_manager.remove_image(playlist_id, filename, post_id)
     if result.get('success'):
-        return jsonify({"success": True, "message": "Image removed from playlist"})
+        return jsonify({"success": True, "message": "Image removed from playlist", "playlist": result.get('playlist')})
     else:
-        return jsonify({"success": False, "error": result.get('error', 'Failed to remove image')}), 500
+        status = 404 if result.get('error') in {'Playlist not found', 'Image not found in playlist'} else 500
+        return jsonify({"success": False, "error": result.get('error', 'Failed to remove image')}), status
 
 ## OLD SYNCHRONOUS ROUTE - DISABLED IN FAVOR OF THREADED VERSION BELOW
 ## (See line ~1462 for the new async implementation with progress tracking)

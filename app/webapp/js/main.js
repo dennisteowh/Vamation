@@ -421,9 +421,6 @@ class VamaGalleryApp {
         try {
             const playlists = await window.playlistManager.fetchPlaylists();
             
-            const isEditModeActive = document.body.classList.contains('edit-mode-active');
-            console.log('loadPlaylistCards - edit-mode-active on body?', isEditModeActive);
-            
             // Always start with create card
             let cardsHtml = this.createPlaylistCreateCard();
             
@@ -433,25 +430,6 @@ class VamaGalleryApp {
             }
             
             playlistsGrid.innerHTML = cardsHtml;
-            console.log('loadPlaylistCards - Cards HTML set, total playlists:', playlists.length);
-            
-            // Verify DOM after setting innerHTML
-            const cardsInDom = playlistsGrid.querySelectorAll('.playlist-card');
-            const cardsWithEditMode = playlistsGrid.querySelectorAll('.playlist-card.edit-mode');
-            const overlaysInDom = playlistsGrid.querySelectorAll('.edit-overlay');
-            
-            console.log('loadPlaylistCards - Cards in DOM:', cardsInDom.length);
-            console.log('loadPlaylistCards - Cards with edit-mode class:', cardsWithEditMode.length);
-            console.log('loadPlaylistCards - Edit overlays in DOM:', overlaysInDom.length);
-            
-            if (isEditModeActive && overlaysInDom.length === 0) {
-                console.error('❌ ERROR: Edit mode is active but no overlays found in DOM!');
-            }
-            
-            if (isEditModeActive && cardsWithEditMode.length === 0) {
-                console.error('❌ ERROR: Edit mode is active but no cards have edit-mode class!');
-            }
-            
         } catch (error) {
             playlistsGrid.innerHTML = `
                 <div style="text-align: center; padding: 2rem; color: var(--danger-color); grid-column: 1 / -1;">
@@ -463,10 +441,8 @@ class VamaGalleryApp {
     }
 
     createPlaylistCreateCard() {
-        const isEditMode = document.body.classList.contains('edit-mode-active');
-        
         return `
-            <div class="gallery-item create-playlist-card ${isEditMode ? 'edit-mode' : ''}" onclick="window.playlistManager.showCreatePlaylistModal()">
+            <div class="gallery-item create-playlist-card" onclick="window.playlistManager.showCreatePlaylistModal()">
                 <div class="gallery-image-container">
                     <div class="create-playlist-icon">
                         <i class="fas fa-plus"></i>
@@ -489,53 +465,49 @@ class VamaGalleryApp {
             thumbnailPath = '/metadata/profile_images/default_playlist_profile.png';
         }
 
-        const isEditMode = document.body.classList.contains('edit-mode-active');
         const imageCount = playlist.images?.length || 0;
-        
-        console.log('createPlaylistCard - Playlist:', playlist.name);
-        console.log('createPlaylistCard - isEditMode:', isEditMode);
-        console.log('createPlaylistCard - Will include edit-overlay:', isEditMode);
 
         const cardHtml = `
-            <div class="gallery-item playlist-card ${isEditMode ? 'edit-mode' : ''}" data-playlist-id="${playlist.playlist_id}" 
-                 onclick="${!isEditMode ? `window.location.href='/playlists/${playlist.playlist_id}_cascade.html'` : ''}">
+            <div class="gallery-item playlist-card" data-playlist-id="${playlist.playlist_id}" 
+                 onclick="window.open('/playlists/${playlist.playlist_id}_cascade.html', '_blank', 'noopener')">
                 <div class="gallery-image-container">
                     <img src="${thumbnailPath}" alt="${Utils.sanitizeHtml(playlist.name)}" class="gallery-image" loading="lazy" 
                          onerror="this.src='/metadata/profile_images/default_playlist_profile.png'">
-                    ${isEditMode ? `
-                    <div class="edit-overlay">
-                        <div class="edit-controls">
-                            <div class="edit-controls-header">
-                                <h4 class="edit-controls-title">Playlist Options</h4>
-                            </div>
-                            <button class="edit-btn rename" onclick="app.renamePlaylist('${playlist.playlist_id}', '${Utils.sanitizeHtml(playlist.name).replace(/'/g, "\\'")}')" title="Rename Playlist">
-                                <i class="fas fa-edit"></i>
-                                <span class="btn-text">Rename</span>
-                            </button>
-                            <button class="edit-btn delete" onclick="app.deletePlaylist('${playlist.playlist_id}')" title="Delete Playlist">
-                                <i class="fas fa-trash"></i>
-                                <span class="btn-text">Delete</span>
-                            </button>
-                        </div>
-                    </div>
-                    ` : ''}
                 </div>
                 <div class="gallery-content">
-                    <h3 class="gallery-title">${Utils.sanitizeHtml(playlist.name)}</h3>
+                    <div class="gallery-title-row">
+                        <h3 class="gallery-title">${Utils.sanitizeHtml(playlist.name)}</h3>
+                        <button class="title-rename-btn playlist-edit-btn" type="button" title="Edit playlist"
+                                onclick="event.stopPropagation(); app.editPlaylist('${playlist.playlist_id}')">
+                            <i class="fas fa-pen"></i>
+                        </button>
+                    </div>
                     ${playlist.description ? `<p class="playlist-description">${Utils.sanitizeHtml(playlist.description)}</p>` : ''}
                     <div class="gallery-meta">
-                        <div class="meta-row">
+                        <div class="meta-row meta-row-actions">
                             <span class="meta-label"><i class="fas fa-images"></i> Images: ${imageCount}</span>
+                            <div class="meta-actions">
+                                <button class="title-rename-btn playlist-delete-btn" type="button" title="Delete playlist"
+                                        onclick="event.stopPropagation(); app.deletePlaylist('${playlist.playlist_id}')">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         `;
-        
-        console.log('createPlaylistCard - HTML includes edit-overlay:', cardHtml.includes('edit-overlay'));
-        console.log('createPlaylistCard - HTML includes edit-mode class:', cardHtml.includes('edit-mode'));
-        
+
         return cardHtml;
+    }
+
+    editPlaylist(playlistId) {
+        const playlist = window.playlistManager.playlists.find(p => p.playlist_id === playlistId);
+        if (!playlist) {
+            statusManager.showError('Playlist not found');
+            return;
+        }
+        window.playlistManager.showEditPlaylistModal(playlist);
     }
 
     async deletePlaylist(playlistId) {
@@ -555,88 +527,6 @@ class VamaGalleryApp {
                 statusManager.showError('Failed to delete playlist: ' + error.message);
             }
         }
-    }
-
-    async renamePlaylist(playlistId, currentName) {
-        const modal = document.getElementById('renamePlaylistModal');
-        const nameInput = document.getElementById('renamePlaylistName');
-        const renameBtn = document.getElementById('confirmRenameBtn');
-        const cancelBtn = document.getElementById('cancelRenameBtn');
-        const closeBtn = modal.querySelector('.close-modal');
-
-        // Set current name
-        nameInput.value = currentName;
-        renameBtn.disabled = false;
-        renameBtn.innerHTML = 'Rename';
-
-        // Show modal
-        modal.classList.add('active');
-
-        const closeModal = () => {
-            modal.classList.remove('active');
-            // Remove event listeners by cloning
-            renameBtn.replaceWith(renameBtn.cloneNode(true));
-            cancelBtn.replaceWith(cancelBtn.cloneNode(true));
-        };
-
-        // Get fresh references after potential cloning
-        const newRenameBtn = document.getElementById('confirmRenameBtn');
-        const newCancelBtn = document.getElementById('cancelRenameBtn');
-
-        const handleRename = async () => {
-            const newName = nameInput.value.trim();
-            
-            if (!newName) {
-                statusManager.showError('Please enter a playlist name');
-                nameInput.focus();
-                return;
-            }
-
-            if (newName === currentName) {
-                closeModal();
-                return;
-            }
-
-            try {
-                newRenameBtn.disabled = true;
-                newRenameBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Renaming...';
-                
-                await window.playlistManager.updatePlaylist(playlistId, { name: newName });
-                
-                statusManager.showSuccess('Playlist renamed successfully');
-                closeModal();
-                await this.loadPlaylistCards(); // Reload the cards
-            } catch (error) {
-                statusManager.showError('Failed to rename playlist: ' + error.message);
-                newRenameBtn.disabled = false;
-                newRenameBtn.innerHTML = 'Rename';
-            }
-        };
-
-        newRenameBtn.addEventListener('click', handleRename);
-        newCancelBtn.addEventListener('click', closeModal);
-        closeBtn.addEventListener('click', closeModal);
-        
-        // Close on backdrop click
-        const backdropHandler = (e) => {
-            if (e.target === modal) {
-                closeModal();
-                modal.removeEventListener('click', backdropHandler);
-            }
-        };
-        modal.addEventListener('click', backdropHandler);
-
-        // Handle Enter key
-        const enterHandler = (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                handleRename();
-            }
-        };
-        nameInput.addEventListener('keydown', enterHandler);
-
-        nameInput.focus();
-        nameInput.select();
     }
 }
 

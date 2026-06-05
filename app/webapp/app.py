@@ -2084,12 +2084,15 @@ class FileOperationsManager:
             images = [img for img in all_images if img.get('visible', True) and not img.get('deleted', False)]
             
             # Replace template variables - escape strings for safe JavaScript embedding
+            safe_post_name = str(post.get('revised_post_name') or post.get('post_name') or 'Unknown Post')
+            safe_post_date = str(post.get('post_date') or '')
+            first_image_name = str(images[0].get('filename') or 'No images') if images else 'No images'
             html = template.replace('{{post_id}}', str(post_id))
-            html = html.replace('{{post_name}}', json.dumps(post.get('revised_post_name', 'Unknown Post'))[1:-1])  # Remove quotes from json.dumps
-            html = html.replace('{{post_date}}', post.get('post_date', ''))
+            html = html.replace('{{post_name}}', json.dumps(safe_post_name)[1:-1])  # Remove quotes from json.dumps
+            html = html.replace('{{post_date}}', safe_post_date)
             html = html.replace('{{images_json}}', json.dumps(images))
             html = html.replace('{{total_images}}', str(len(images)))
-            html = html.replace('{{first_image_name}}', json.dumps(images[0]['filename'] if images else 'No images')[1:-1])
+            html = html.replace('{{first_image_name}}', json.dumps(first_image_name)[1:-1])
             
             return html
             
@@ -2124,9 +2127,11 @@ class FileOperationsManager:
             visible_images = len([img for img in images if img.get('visible', True) and not img.get('deleted', False)])
 
             # Replace template variables - escape strings for safe JavaScript embedding
+            safe_post_name = str(post.get('revised_post_name') or post.get('post_name') or 'Unknown Post')
+            safe_post_date = str(post.get('post_date') or '')
             html = template.replace('{{post_id}}', str(post_id))
-            html = html.replace('{{post_name}}', json.dumps(post.get('revised_post_name', 'Unknown Post'))[1:-1])  # Remove quotes from json.dumps
-            html = html.replace('{{post_date}}', post.get('post_date', ''))
+            html = html.replace('{{post_name}}', json.dumps(safe_post_name)[1:-1])  # Remove quotes from json.dumps
+            html = html.replace('{{post_date}}', safe_post_date)
             html = html.replace('{{images_json}}', json.dumps(images))
             html = html.replace('{{total_images}}', str(len(images)))
             html = html.replace('{{visible_images}}', str(visible_images))
@@ -2145,9 +2150,9 @@ class FileOperationsManager:
             
             post_metadata = {
                 'post_id': post_id,
-                'post_name': post.get('revised_post_name', post.get('post_name', '')),
-                'post_date': post.get('post_date', ''),
-                'description': post.get('description', ''),
+                'post_name': str(post.get('revised_post_name') or post.get('post_name') or ''),
+                'post_date': str(post.get('post_date') or ''),
+                'description': str(post.get('description') or ''),
                 'extraction_date': datetime.now().isoformat(),
                 'cascade_metadata': cascade_metadata,
             }

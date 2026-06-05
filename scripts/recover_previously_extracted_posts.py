@@ -13,9 +13,9 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-os.environ['VAMATION_DISABLE_BACKGROUND_INIT'] = '1'
+os.environ.setdefault('VAMATION_DISABLE_BACKGROUND_INIT', '1')
 
-from app.webapp.app import FileOperationsManager, metadata_manager  # noqa: E402
+from app.webapp.app import FileOperationsManager
 
 DEFAULT_MANIFEST = PROJECT_ROOT / 'data' / 'metadata' / 'backups' / 'pre_reset_recovery_manifest_20260530T135607Z.json'
 DEFAULT_STATE = PROJECT_ROOT / 'data' / 'metadata' / 'backups' / 'recovery_progress.json'
@@ -31,18 +31,32 @@ def load_json(path: Path) -> dict[str, Any]:
 
 def save_json(path: Path, data: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding='utf-8')
+    tmp = path.with_suffix(path.suffix + '.tmp')
+    tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding='utf-8')
+    tmp.replace(path)
 
 
-def build_initial_state(manifest_path: Path, limit: int) -> dict[str, Any]:
+def manifest_posts(manifest_path: Path) -> list[dict[str, Any]]:
     manifest = load_json(manifest_path)
-    posts = manifest.get('posts_with_extracted_zip', [])[:limit]
+    posts = manifest.get('posts_with_extracted_zip', [])
+    normalized = []
+    for post in posts:
+        normalized.append({
+            'post_id': str(post['post_id']),
+            'post_name': post.get('revised_post_name') or post.get('post_name', ''),
+            'source_manifest_entry': post,
+        })
+    return normalized
+
+
+def build_initial_state(manifest_path: Path) -> dict[str, Any]:
+    posts = manifest_posts(manifest_path)
     return {
         'created_at': now_iso(),
         'updated_at': now_iso(),
         'manifest_path': str(manifest_path),
         'mode': 'recovery-from-pre-reset-manifest',
-        'batch_limit': limit,
+        'batch_limit': 10,
         'summary': {
             'total_selected': len(posts),
             'queued': len(posts),
@@ -52,14 +66,14 @@ def build_initial_state(manifest_path: Path, limit: int) -> dict[str, Any]:
         },
         'posts': [
             {
-                'post_id': str(post['post_id']),
-                'post_name': post.get('revised_post_name') or post.get('post_name', ''),
+                'post_id': post['post_id'],
+                'post_name': post['post_name'],
                 'status': 'queued',
                 'attempts': 0,
                 'last_error': None,
                 'started_at': None,
                 'completed_at': None,
-                'source_manifest_entry': post,
+                'source_manifest_entry': post['source_manifest_entry'],
             }
             for post in posts
         ]
@@ -79,34 +93,36 @@ def recompute_summary(state: dict[str, Any]) -> None:
     state['updated_at'] = now_iso()
 
 
-def ensure_state(state_path: Path, manifest_path: Path, limit: int) -> dict[str, Any]:
+def ensure_state(state_path: Path, manifest_path: Path) -> dict[str, Any]:
     if state_path.exists():
-        return load_json(state_path)
-    state = build_initial_state(manifest_path, limit)
+        state = load_json(state_path)
+        if 'posts' in state and isinstance(state['posts'], list):
+            recompute_summary(state)
+            return state
+    state = build_initial_state(manifest_path)
     save_json(state_path, state)
     return state
 
 
-def get_target_posts(state: dict[str, Any], only_status: set[str] | None = None) -> list[dict[str, Any]]:
-    posts = state.get('posts', [])
-    if not only_status:
-        return posts
-    return [post for post in posts if post.get('status') in only_status]
+def next_batch(state: dict[str, Any], limit: int) -> list[dict[str, Any]]:
+    candidates = [p for p in state.get('posts', []) if p.get('status') in {'queued', 'failed'}]
+    return candidates[:limit]
 
 
 def run_recovery(state_path: Path, manifest_path: Path, limit: int, force_regenerate: bool = True) -> None:
-    state = ensure_state(state_path, manifest_path, limit)
-    targets = get_target_posts(state, {'queued', 'failed'})
+    state = ensure_state(state_path, manifest_path)
+    state['batch_limit'] = limit
+    targets = next_batch(state, limit)
 
-    print(f"Recovery state: {state_path}")
-    print(f"Manifest: {manifest_path}")
-    print(f"Selected posts: {len(state.get('posts', []))}")
-    print(f"Pending this run: {len(targets)}")
+    print(f'Recovery state: {state_path}')
+    print(f'Manifest: {manifest_path}')
+    print(f'Total tracked posts: {len(state.get("posts", []))}')
+    print(f'Processing this run: {len(targets)}')
 
     for post_state in targets:
         post_id = str(post_state['post_id'])
         post_name = post_state.get('post_name', '')
-        print(f"\n=== Recovering {post_id} :: {post_name} ===")
+        print(f'\n=== Recovering {post_id} :: {post_name} ===')
 
         post_state['status'] = 'in_progress'
         post_state['attempts'] = int(post_state.get('attempts', 0)) + 1
@@ -123,17 +139,17 @@ def run_recovery(state_path: Path, manifest_path: Path, limit: int, force_regene
                 post_state['status'] = 'completed'
                 post_state['completed_at'] = now_iso()
                 post_state['last_error'] = None
-                print(f"OK {post_id}")
+                print(f'OK {post_id}')
             else:
                 post_state['status'] = 'failed'
                 post_state['completed_at'] = now_iso()
                 post_state['last_error'] = result.get('error', 'Unknown failure')
-                print(f"FAIL {post_id}: {post_state['last_error']}")
+                print(f'FAIL {post_id}: {post_state["last_error"]}')
         except Exception as exc:
             post_state['status'] = 'failed'
             post_state['completed_at'] = now_iso()
             post_state['last_error'] = str(exc)
-            print(f"FAIL {post_id}: {exc}")
+            print(f'FAIL {post_id}: {exc}')
 
         recompute_summary(state)
         save_json(state_path, state)
@@ -142,34 +158,32 @@ def run_recovery(state_path: Path, manifest_path: Path, limit: int, force_regene
     print(json.dumps(state.get('summary', {}), indent=2))
 
 
-def show_selection(manifest_path: Path, limit: int) -> None:
-    manifest = load_json(manifest_path)
-    posts = manifest.get('posts_with_extracted_zip', [])[:limit]
+def show_selection(manifest_path: Path, state_path: Path, limit: int) -> None:
+    state = ensure_state(state_path, manifest_path)
+    posts = next_batch(state, limit)
     print(json.dumps([
         {
-            'post_id': str(post.get('post_id', '')),
-            'post_name': post.get('revised_post_name') or post.get('post_name', ''),
-            'zip_count': len(post.get('zip_files', [])),
+            'post_id': p['post_id'],
+            'post_name': p.get('post_name', ''),
+            'status': p.get('status'),
+            'attempts': p.get('attempts', 0),
         }
-        for post in posts
-    ], indent=2, ensure_ascii=False))
+        for p in posts
+    ], ensure_ascii=False, indent=2))
+    print(f'State file: {state_path}')
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description='Recover previously extracted Vamation posts from the pre-reset manifest.')
+    parser = argparse.ArgumentParser(description='Recover previously extracted Vamation posts in incremental batches.')
     parser.add_argument('--manifest', type=Path, default=DEFAULT_MANIFEST)
     parser.add_argument('--state', type=Path, default=DEFAULT_STATE)
-    parser.add_argument('--limit', type=int, default=4, help='How many manifest posts to target. Default: 4')
-    parser.add_argument('--run', action='store_true', help='Actually run the recovery. Without this flag, the script only prints the selected posts.')
+    parser.add_argument('--limit', type=int, default=10)
+    parser.add_argument('--run', action='store_true')
     args = parser.parse_args()
 
-    if not args.manifest.exists():
-        print(f'Manifest not found: {args.manifest}', file=sys.stderr)
-        return 1
-
     if not args.run:
-        show_selection(args.manifest, args.limit)
-        print(f"\nDry run only. State file will be created/updated when you run with --run: {args.state}")
+        show_selection(args.manifest, args.state, args.limit)
+        print(f'Run with --run to recover the next {args.limit} queued/failed posts.')
         return 0
 
     run_recovery(args.state, args.manifest, args.limit)

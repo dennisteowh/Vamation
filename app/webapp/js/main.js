@@ -7,12 +7,15 @@ class VamaGalleryApp {
     constructor() {
         this.version = '2.0.0'; // Increment this when making major changes
         this.gallery = null;
-        this.isInitialized = false;
-        this.systemStatus = {
-            online: true,
-            lastUpdate: null,
-            errors: []
-        };
+        this.playlistManager = null;
+        this.themeManager = null;
+        this.systemStatus = null;
+        this.updateStatusPollTimer = null;
+        this.updateStatusPollToken = 0;
+        this.updateStatusPollBaseline = null;
+        this.updateMetadataBtn = null;
+        this.updateMetadataBtnOriginalHtml = '';
+        this.pendingUpdateResultStorageKey = 'vamation_pending_update_result';
         
         this.init();
     }
@@ -36,6 +39,8 @@ class VamaGalleryApp {
             
             // Setup error handling
             this.setupErrorHandling();
+
+            this.showPendingUpdateResult();
             
             // Mark as initialized
             this.isInitialized = true;
@@ -112,26 +117,33 @@ class VamaGalleryApp {
         
         // Manual metadata update button
         const updateMetadataBtn = document.getElementById('updateMetadataBtn');
+        this.updateMetadataBtn = updateMetadataBtn;
+        if (updateMetadataBtn && !this.updateMetadataBtnOriginalHtml) {
+            this.updateMetadataBtnOriginalHtml = updateMetadataBtn.innerHTML;
+        }
         if (updateMetadataBtn) {
             updateMetadataBtn.addEventListener('click', async () => {
-                const originalHtml = updateMetadataBtn.innerHTML;
-                updateMetadataBtn.disabled = true;
-                updateMetadataBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Updating...</span>';
+                this.setUpdateButtonLoading(true);
                 try {
                     const result = await API.updater.trigger('manual-button');
-                    if (result?.data?.started) {
+                    const payload = result?.data || {};
+                    if (payload.started) {
                         statusManager.showInfo('Metadata update started in background');
-                    } else if (result?.data?.already_running || result?.data?.status?.running) {
+                        this.beginBackgroundUpdateStatusPolling(payload.status || null);
+                    } else if (payload.skipped === 'cooldown') {
+                        statusManager.showInfo('Metadata update was triggered recently. Checking latest update status…');
+                        this.beginBackgroundUpdateStatusPolling(payload.status || null);
+                    } else if (payload.already_running || payload.status?.running) {
                         statusManager.showInfo('Metadata update is already running');
+                        this.beginBackgroundUpdateStatusPolling(payload.status || null);
                     } else {
+                        this.setUpdateButtonLoading(false);
                         statusManager.showWarning('Update request was received, but did not start as expected');
                     }
                 } catch (error) {
+                    this.setUpdateButtonLoading(false);
                     console.error('Failed to trigger metadata update:', error);
                     statusManager.showError('Failed to start metadata update: ' + error.message);
-                } finally {
-                    updateMetadataBtn.disabled = false;
-                    updateMetadataBtn.innerHTML = originalHtml;
                 }
             });
         }
@@ -147,6 +159,157 @@ class VamaGalleryApp {
         });
         
         console.log('✓ Global event listeners set up');
+    }
+
+    beginBackgroundUpdateStatusPolling(initialStatus = null) {
+        const status = initialStatus || {};
+        this.stopBackgroundUpdateStatusPolling();
+        this.setUpdateButtonLoading(true);
+        this.updateStatusPollBaseline = {
+            lastTriggeredAt: status.last_triggered_at || null,
+            lastFinishedAt: status.last_finished_at || null,
+        };
+
+        const pollToken = Date.now();
+        this.updateStatusPollToken = pollToken;
+
+        const poll = async () => {
+            if (this.updateStatusPollToken !== pollToken) return;
+            try {
+                const result = await API.updater.getStatus();
+                const current = result?.data || {};
+                if (current.running) {
+                    this.setUpdateButtonLoading(true);
+                    if (this.updateStatusPollToken === pollToken) {
+                        this.updateStatusPollTimer = setTimeout(poll, 3000);
+                    }
+                    return;
+                }
+
+                const baseline = this.updateStatusPollBaseline || {};
+                const hasNewCompletion = (
+                    current.last_finished_at &&
+                    current.last_finished_at !== baseline.lastFinishedAt
+                ) || (
+                    current.last_triggered_at &&
+                    current.last_triggered_at !== baseline.lastTriggeredAt &&
+                    !current.running
+                );
+
+                if (!hasNewCompletion) {
+                    if (this.updateStatusPollToken === pollToken) {
+                        this.updateStatusPollTimer = setTimeout(poll, 3000);
+                    }
+                    return;
+                }
+
+                this.stopBackgroundUpdateStatusPolling();
+                this.setUpdateButtonLoading(false);
+
+                if (current.last_exit_code === 0) {
+                    const completionMessage = this.buildBackgroundUpdateSuccessMessage(current);
+                    this.persistPendingUpdateResult({
+                        type: 'success',
+                        message: completionMessage,
+                        completedAt: current.last_finished_at || new Date().toISOString(),
+                    });
+                    Utils.storage.set('last_data_update', Date.now());
+                    this.reloadPageAfterBackgroundUpdate();
+                } else {
+                    const errorMsg = this.formatBackgroundUpdateError(current);
+                    statusManager.showError(errorMsg);
+                }
+            } catch (error) {
+                this.setUpdateButtonLoading(false);
+                this.stopBackgroundUpdateStatusPolling();
+                console.error('Failed to poll background update status:', error);
+                statusManager.showError('Failed to monitor metadata update status. Please refresh and check again.');
+            }
+        };
+
+        poll();
+    }
+
+    stopBackgroundUpdateStatusPolling() {
+        this.updateStatusPollToken = 0;
+        if (this.updateStatusPollTimer) {
+            clearTimeout(this.updateStatusPollTimer);
+            this.updateStatusPollTimer = null;
+        }
+        this.updateStatusPollBaseline = null;
+    }
+
+    setUpdateButtonLoading(isLoading) {
+        if (!this.updateMetadataBtn) return;
+
+        if (isLoading) {
+            this.updateMetadataBtn.disabled = true;
+            this.updateMetadataBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Updating...</span>';
+            return;
+        }
+
+        this.updateMetadataBtn.disabled = false;
+        if (this.updateMetadataBtnOriginalHtml) {
+            this.updateMetadataBtn.innerHTML = this.updateMetadataBtnOriginalHtml;
+        }
+    }
+
+    buildBackgroundUpdateSuccessMessage(current = {}) {
+        const summary = current.last_summary || {};
+        const processed = Number(summary.processed_in_range || 0);
+        const added = Number(summary.added_posts || 0);
+        const updated = Number(summary.updated_posts || 0);
+        const deleted = Number(summary.deleted_posts || 0);
+        const details = [
+            processed > 0 ? `${processed} post${processed === 1 ? '' : 's'} processed` : 'No posts needed processing',
+            `${added} added`,
+            `${updated} refreshed`,
+            deleted > 0 ? `${deleted} removed` : null,
+        ].filter(Boolean).join(' • ');
+
+        return `Metadata update complete. ${details}`;
+    }
+
+    persistPendingUpdateResult(result) {
+        try {
+            sessionStorage.setItem(this.pendingUpdateResultStorageKey, JSON.stringify(result));
+        } catch (error) {
+            console.warn('Failed to persist background update result:', error);
+        }
+    }
+
+    showPendingUpdateResult() {
+        try {
+            const raw = sessionStorage.getItem(this.pendingUpdateResultStorageKey);
+            if (!raw) return;
+
+            sessionStorage.removeItem(this.pendingUpdateResultStorageKey);
+            const result = JSON.parse(raw);
+            if (!result || !result.message) return;
+
+            if (result.type === 'error') {
+                statusManager.showError(result.message);
+            } else {
+                statusManager.showSuccess(result.message, 7000);
+            }
+        } catch (error) {
+            console.warn('Failed to restore background update result:', error);
+            sessionStorage.removeItem(this.pendingUpdateResultStorageKey);
+        }
+    }
+
+    reloadPageAfterBackgroundUpdate() {
+        window.location.reload();
+    }
+
+    formatBackgroundUpdateError(current = {}) {
+        const rawError = (current.last_error || '').trim();
+        if (!rawError) {
+            return 'Metadata update failed. Check the logs and try again.';
+        }
+
+        const firstLine = rawError.split('\n').map(line => line.trim()).find(Boolean);
+        return firstLine || 'Metadata update failed. Check the logs and try again.';
     }
 
     setupErrorHandling() {
@@ -184,6 +347,7 @@ class VamaGalleryApp {
     }
 
     handlePageUnload(e) {
+        this.setUpdateButtonLoading(false);
         // Check for unsaved changes
         if (this.hasUnsavedChanges()) {
             const message = 'You have unsaved changes. Are you sure you want to leave?';
@@ -276,8 +440,16 @@ class VamaGalleryApp {
         Utils.storage.set('app_theme', 'dark-luxury');
     }
 
-    async refreshData() {
-        statusManager.showInfo('Refreshing data...');
+    async refreshData(options = {}) {
+        const {
+            silent = false,
+            successMessage = 'Data refreshed successfully',
+            errorMessagePrefix = 'Failed to refresh data: '
+        } = options;
+
+        if (!silent) {
+            statusManager.showInfo('Refreshing data...');
+        }
         
         try {
             // Clear API cache
@@ -289,11 +461,16 @@ class VamaGalleryApp {
             }
             
             Utils.storage.set('last_data_update', Date.now());
-            statusManager.showSuccess('Data refreshed successfully');
+            if (!silent && successMessage) {
+                statusManager.showSuccess(successMessage);
+            }
             
         } catch (error) {
             console.error('Failed to refresh data:', error);
-            statusManager.showError('Failed to refresh data: ' + error.message);
+            if (!silent) {
+                statusManager.showError(errorMessagePrefix + error.message);
+            }
+            throw error;
         }
     }
 
@@ -533,18 +710,20 @@ class VamaGalleryApp {
 // Initialize the application when the page loads
 let app;
 
+function bootVamaApp() {
+    app = new VamaGalleryApp();
+    window.vamaApp = app;
+    window.app = app;
+}
+
 // Check if DOM is already loaded
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
-        app = new VamaGalleryApp();
+        bootVamaApp();
     });
 } else {
-    app = new VamaGalleryApp();
+    bootVamaApp();
 }
-
-// Make app globally available for debugging
-window.vamaApp = app;
-window.app = app; // Alias for easier access
 
 // Service Worker registration (if available)
 if ('serviceWorker' in navigator && window.location.protocol === 'https:') {

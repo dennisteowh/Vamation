@@ -186,13 +186,13 @@ const API = {
      */
     updater: {
         // Trigger app update
-        trigger(reason = 'app-load') {
+        trigger(reason = 'manual') {
             return API.post('/update/trigger', { reason });
         },
 
         // Get update status
         getStatus() {
-            return API.get('/update/status');
+            return API.request('/update/status', { method: 'GET' });
         }
     }
 };

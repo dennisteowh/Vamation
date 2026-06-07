@@ -175,7 +175,7 @@ OUTPUT_FILENAME = "posts_metadata"  # Fixed filename for incremental updates
 MAX_RETRIES = 3
 BATCH_SIZE = 2
 DELAY_BETWEEN_BATCHES = 3
-LOGIN_TIMEOUT = 120
+LOGIN_TIMEOUT = 900
 
 # Image extraction settings
 MAX_IMAGES_PER_POST = 3
@@ -191,6 +191,7 @@ class IntegratedPatreonPipeline:
         self.cookies_path = COOKIES_FILE
         self.metadata_path = POSTS_METADATA_JSON.parent
         self.download_path = DOWNLOADS_DIR
+        self.last_run_summary = {}
         
         self.metadata_path.mkdir(exist_ok=True)
         self.download_path.mkdir(exist_ok=True)
@@ -216,37 +217,37 @@ class IntegratedPatreonPipeline:
         print(f"   • Profile Images: {'✅' if SCRAPE_PROFILE_IMAGES else '❌'}")
         
     def setup_authentication(self) -> bool:
-        """Setup authentication with automatic cookie extraction if needed."""
+        """Setup authentication from the existing cookie file only."""
         print(f"\n🔐 Setting up authentication...")
-        
-        # Check if cookies exist and are valid
-        if self.cookies_path.exists():
-            print(f"📁 Found cookies file: {self.cookies_path}")
+
+        if not self.cookies_path.exists():
+            print(f"📁 No cookies file found: {self.cookies_path}")
+            print("❌ Authentication failed: cookies.txt is missing. Refresh cookies manually and rerun.")
+            return False
+
+        print(f"📁 Found cookies file: {self.cookies_path}")
+
+        last_error = None
+        for attempt in range(2):
             try:
+                if attempt == 1:
+                    print("🔁 Retrying authentication with a freshly recreated session...")
                 self.session = self._create_session()
                 if self._validate_authentication():
                     print("✅ Existing cookies are valid!")
                     return True
-                else:
-                    print("❌ Existing cookies are invalid")
+                last_error = "cookie validation failed"
             except Exception as e:
-                print(f"❌ Error with existing cookies: {e}")
-        else:
-            print(f"📁 No cookies file found")
-        
-        # Need fresh cookies
-        print(f"🌐 Extracting fresh cookies...")
-        if self._extract_fresh_cookies():
-            self.session = self._create_session()
-            if self._validate_authentication():
-                print("✅ Fresh cookies extracted and validated!")
-                return True
-            else:
-                print("❌ Fresh cookies failed validation")
-                return False
-        else:
-            print("❌ Failed to extract fresh cookies")
-            return False
+                last_error = str(e)
+                print(f"❌ Error while validating cookies: {e}")
+
+            time.sleep(1)
+
+        print("❌ Authentication failed with current cookies.")
+        print("💡 Manual cookie refresh is required. The pipeline will not try the in-band cookie refresh route.")
+        if last_error:
+            print(f"   Last auth error: {last_error}")
+        return False
     
     def _create_session(self) -> requests.Session:
         """Create an authenticated session with browser cookies."""
@@ -270,125 +271,46 @@ class IntegratedPatreonPipeline:
             'Accept': 'application/vnd.api+json',
             'Accept-Language': 'en-US,en;q=0.9',
             'Referer': 'https://www.patreon.com/',
-            'Origin': 'https://www.patreon.com'
+            'Origin': 'https://www.patreon.com',
+            'Connection': 'keep-alive'
         })
         
         return session
     
     def _validate_authentication(self) -> bool:
-        """Test if current cookies are still valid."""
+        """Test if current cookies are still valid using the known-good request flow."""
         try:
-            response = self.session.get(f"https://www.patreon.com/api/campaigns/{self.campaign_id}")
-            return response.status_code == 200
-        except Exception:
-            return False
-    
-    def _extract_fresh_cookies(self) -> bool:
-        """Extract fresh cookies using browser automation."""
-        if not SELENIUM_AVAILABLE:
-            print("❌ Selenium not available for cookie extraction")
-            print("💡 Install selenium: pip install selenium")
-            return False
-        
-        try:
-            print("🌐 Opening Chrome browser for authentication...")
-            
-            # Setup Chrome options
-            chrome_options = Options()
-            chrome_options.add_argument('--no-sandbox')
-            chrome_options.add_argument('--disable-dev-shm-usage')
-            
-            # Try to use existing Chrome profile
-            profile_path = self._get_chrome_profile_path()
-            if profile_path:
-                print(f"📂 Using existing Chrome profile: {profile_path}")
-                chrome_options.add_argument(f'--user-data-dir={profile_path}')
-                chrome_options.add_argument('--profile-directory=Default')
-            else:
-                print("📂 Using temporary Chrome profile")
-            
-            # Start browser
-            driver = webdriver.Chrome(options=chrome_options)
-            
-            try:
-                # Navigate to Patreon
-                print("📖 Navigating to Patreon...")
-                driver.get("https://www.patreon.com")
-                time.sleep(3)
-                
-                # Check if already logged in
-                if ("/login" not in driver.current_url and 
-                    (driver.find_elements(By.CSS_SELECTOR, "[data-tag='user-menu']") or
-                     driver.find_elements(By.CSS_SELECTOR, ".sc-fznWqX") or
-                     "feed" in driver.current_url.lower())):
-                    print("✅ Already logged in!")
-                else:
-                    # Navigate to login and wait for user
-                    driver.get("https://www.patreon.com/login")
-                    
-                    print("\n" + "="*60)
-                    print("🔐 PLEASE LOGIN TO PATREON IN THE BROWSER WINDOW")
-                    print("="*60)
-                    print("1. Complete your login (username/password, 2FA if needed)")
-                    print("2. Wait for the main Patreon page to load")
-                    print("3. The script will automatically detect when you're logged in")
-                    print(f"4. Timeout: {LOGIN_TIMEOUT} seconds")
-                    print("="*60)
-                    
-                    # Wait for login completion
-                    wait = WebDriverWait(driver, LOGIN_TIMEOUT)
-                    wait.until(lambda d: "/login" not in d.current_url or 
-                              d.find_elements(By.CSS_SELECTOR, "[data-tag='user-menu']") or
-                              d.find_elements(By.CSS_SELECTOR, ".sc-fznWqX") or
-                              "/home" in d.current_url)
-                    
-                    print("✅ Login detected!")
-                
-                # Extract cookies
-                cookies = driver.get_cookies()
-                essential_cookies = []
-                required_names = ['session_id', '__cf_bm', 'patreon_device_id']
-                
-                for cookie in cookies:
-                    if cookie['domain'] in ['.patreon.com', 'patreon.com'] or \
-                       any(req in cookie['name'] for req in required_names):
-                        essential_cookies.append({
-                            'name': cookie['name'],
-                            'value': cookie['value'],
-                            'domain': cookie['domain']
-                        })
-                
-                if len(essential_cookies) < 3:
-                    print(f"❌ Only found {len(essential_cookies)} cookies - login may have failed")
-                    return False
-                
-                # Save cookies
-                with open(self.cookies_path, 'w') as f:
-                    json.dump(essential_cookies, f, indent=2)
-                
-                print(f"✅ Extracted {len(essential_cookies)} cookies")
-                return True
-                
-            finally:
-                driver.quit()
-                
+            campaign_url = f"https://www.patreon.com/api/campaigns/{self.campaign_id}"
+            campaign_response = self.session.get(campaign_url, timeout=15)
+            campaign_ct = campaign_response.headers.get('content-type', '')
+            print(f"   • Campaign auth check: HTTP {campaign_response.status_code} | {campaign_ct}")
+
+            if campaign_response.status_code != 200:
+                return False
+
+            posts_url = "https://www.patreon.com/api/posts"
+            posts_params = {
+                'filter[campaign_id]': self.campaign_id,
+                'filter[contains_exclusive_posts]': 'true',
+                'sort': '-published_at',
+                'json-api-use-default-includes': 'false',
+                'fields[post]': 'title,published_at,url,patreon_url',
+                'page[count]': '1',
+            }
+            posts_response = self.session.get(posts_url, params=posts_params, timeout=15)
+            posts_ct = posts_response.headers.get('content-type', '')
+            print(f"   • Recent posts check: HTTP {posts_response.status_code} | {posts_ct}")
+
+            if posts_response.status_code != 200:
+                return False
+
+            posts_payload = posts_response.json()
+            return isinstance(posts_payload.get('data', []), list)
         except Exception as e:
-            print(f"❌ Cookie extraction failed: {e}")
+            print(f"   • Auth validation exception: {e}")
             return False
-    
+
     def _get_chrome_profile_path(self) -> str:
-        """Get Chrome user data directory path."""
-        possible_paths = [
-            os.path.expanduser(r'~\AppData\Local\Google\Chrome\User Data'),
-            os.path.expanduser(r'~\AppData\Local\Chromium\User Data'),
-            r'C:\Users\{}\AppData\Local\Google\Chrome\User Data'.format(os.getenv('USERNAME', '')),
-        ]
-        
-        for path in possible_paths:
-            if os.path.exists(path):
-                default_profile = os.path.join(path, 'Default')
-                if os.path.exists(default_profile):
-                    return path
         return None
     
     def load_existing_metadata(self) -> Dict:
@@ -471,6 +393,8 @@ class IntegratedPatreonPipeline:
         page_num = 1
         total_posts_processed = 0
         total_posts_in_range = 0
+        added_count = 0
+        refreshed_count = 0
         
         # Load existing metadata if scraping metadata
         existing_posts = {}
@@ -522,6 +446,7 @@ class IntegratedPatreonPipeline:
                         
                         if in_range:
                             print(f"  {i+1:2d}. 📝 PROCESSING | {published_sgt.strftime('%Y-%m-%d %H:%M:%S')} | {title}")
+                            was_existing = post_id in existing_posts
                             
                             # Process this post with integrated scraping
                             post_result = self._process_single_post_integrated(
@@ -533,6 +458,10 @@ class IntegratedPatreonPipeline:
                                     existing_posts[post_id] = post_result
                                     page_metadata.append(post_result)
                                     posts_processed_in_range.append(post_result)
+                                    if was_existing:
+                                        refreshed_count += 1
+                                    else:
+                                        added_count += 1
                                 
                                 page_posts_in_range += 1
                                 total_posts_in_range += 1
@@ -584,6 +513,11 @@ class IntegratedPatreonPipeline:
         
         # Final save if scraping metadata
         if SCRAPE_METADATA and all_metadata:
+            self.last_run_summary = {
+                'processed_in_range': total_posts_in_range,
+                'added_posts': added_count,
+                'updated_posts': refreshed_count,
+            }
             print(f"\n💾 Saving final metadata...")
             # Sort by post_date (descending, None/missing at bottom) then by post_name (ascending)
             all_metadata.sort(key=lambda p: (
@@ -614,7 +548,9 @@ class IntegratedPatreonPipeline:
             'total_in_range': total_posts_in_range,
             'pages_processed': page_num - 1,
             'metadata': all_metadata if SCRAPE_METADATA else None,
-            'posts_processed_in_range': posts_processed_in_range
+            'posts_processed_in_range': posts_processed_in_range,
+            'added_posts': added_count,
+            'updated_posts': refreshed_count,
         }
     
     def _process_single_post_integrated(self, post: Dict, existing_posts: Dict, post_number: int) -> Optional[Dict]:
@@ -634,25 +570,8 @@ class IntegratedPatreonPipeline:
                     # Update existing post
                     print(f"   🔄 Updating existing post metadata")
                     existing_post = existing_posts[post_id]
-                    existing_post['scraped_date'] = datetime.now(self.sgt).isoformat()
                     post_metadata = self._extract_post_metadata(post)
-                    
-                    # Preserve user-modified fields
-                    post_metadata['revised_post_name'] = existing_post.get('revised_post_name', post_metadata['revised_post_name'])
-                    post_metadata['display'] = existing_post.get('display', post_metadata['display'])
-                    post_metadata['favourite'] = existing_post.get('favourite', False)
-                    post_metadata['cascade_metadata'] = existing_post.get('cascade_metadata', {})
-                    
-                    # Preserve download status for ZIP files
-                    if existing_post.get('zip_files') and post_metadata.get('zip_files'):
-                        for i, new_zip in enumerate(post_metadata['zip_files']):
-                            if i < len(existing_post['zip_files']):
-                                existing_zip = existing_post['zip_files'][i]
-                                new_zip['downloaded'] = existing_zip.get('downloaded', False)
-                                new_zip['extracted'] = existing_zip.get('extracted', False)
-                                new_zip['download_date'] = existing_zip.get('download_date', None)
-                                new_zip['local_filename'] = existing_zip.get('local_filename', '')
-                    
+                    post_metadata = self._merge_existing_local_state(existing_post, post_metadata)
                     post_metadata = self._add_default_custom_fields(post_metadata, existing_posts)
                 else:
                     # New post
@@ -721,6 +640,83 @@ class IntegratedPatreonPipeline:
         except Exception as e:
             print(f"      ❌ ERROR processing post {post_id}: {e}")
             return None
+
+    def _merge_existing_local_state(self, existing_post: Dict, fresh_post: Dict) -> Dict:
+        """Merge local app state from an existing post into freshly scraped metadata."""
+        merged = dict(fresh_post)
+        merged['scraped_date'] = datetime.now(self.sgt).isoformat()
+
+        for field in ['revised_post_name', 'display', 'favourite', 'cascade_metadata']:
+            if field in existing_post:
+                merged[field] = existing_post.get(field)
+
+        existing_zips = existing_post.get('zip_files') or []
+        fresh_zips = merged.get('zip_files') or []
+        if existing_zips and fresh_zips:
+            existing_zip_map = {}
+            for zip_info in existing_zips:
+                if not isinstance(zip_info, dict):
+                    continue
+                filename = zip_info.get('filename')
+                media_id = zip_info.get('media_id')
+                if filename:
+                    existing_zip_map[('filename', filename)] = zip_info
+                if media_id:
+                    existing_zip_map[('media_id', str(media_id))] = zip_info
+
+            for fresh_zip in fresh_zips:
+                if not isinstance(fresh_zip, dict):
+                    continue
+                match = None
+                if fresh_zip.get('filename'):
+                    match = existing_zip_map.get(('filename', fresh_zip.get('filename')))
+                if match is None and fresh_zip.get('media_id'):
+                    match = existing_zip_map.get(('media_id', str(fresh_zip.get('media_id'))))
+                if match is None:
+                    continue
+
+                for key in ['downloaded', 'extracted', 'download_date', 'local_filename']:
+                    if key in match:
+                        fresh_zip[key] = match.get(key)
+
+                for key, value in match.items():
+                    if key not in fresh_zip:
+                        fresh_zip[key] = value
+
+        existing_images = existing_post.get('profile_images') or []
+        fresh_images = merged.get('profile_images') or []
+        if existing_images and fresh_images:
+            existing_image_map = {}
+            for image_info in existing_images:
+                if not isinstance(image_info, dict):
+                    continue
+                filename = image_info.get('filename')
+                image_type = image_info.get('type')
+                index = image_info.get('index')
+                if filename:
+                    existing_image_map[('filename', filename)] = image_info
+                existing_image_map[('slot', image_type, index)] = image_info
+
+            for fresh_image in fresh_images:
+                if not isinstance(fresh_image, dict):
+                    continue
+                match = None
+                if fresh_image.get('filename'):
+                    match = existing_image_map.get(('filename', fresh_image.get('filename')))
+                if match is None:
+                    match = existing_image_map.get(('slot', fresh_image.get('type'), fresh_image.get('index')))
+                if match is None:
+                    continue
+
+                for key in ['downloaded']:
+                    if key in match:
+                        fresh_image[key] = match.get(key)
+
+                for key, value in match.items():
+                    if key not in fresh_image:
+                        fresh_image[key] = value
+
+        return merged
     
     def _get_posts_page(self, cursor: Optional[str] = None) -> List[Dict]:
         """Get one page of posts from the Patreon API."""
@@ -1099,6 +1095,7 @@ class IntegratedPatreonPipeline:
             'posts_with_images': len([m for m in metadata if m.get('profile_images_count', 0) > 0]),
             'total_images_downloaded': sum([m.get('profile_images_count', 0) for m in metadata]),
             'posts_with_zip_files': len([m for m in metadata if m.get('has_zip_files', False)]),
+            'run_details': dict(self.last_run_summary),
             'date_range': {
                 'earliest': min([m['post_date'] for m in metadata if m.get('post_date')]) if metadata else None,
                 'latest': max([m['post_date'] for m in metadata if m.get('post_date')]) if metadata else None
@@ -1147,7 +1144,7 @@ class IntegratedPatreonPipeline:
             # Step 1: Authentication
             if not self.setup_authentication():
                 print(f"\n❌ Pipeline aborted: Authentication failed")
-                return
+                return False
             
             # Step 2: Auto-determine start date from metadata (for incremental updates)
             start_date = START_DATE
@@ -1178,13 +1175,16 @@ class IntegratedPatreonPipeline:
                 print(f"   • {self.download_path} - Downloaded ZIP files")
             if SCRAPE_PROFILE_IMAGES:
                 print(f"   • {self.profile_images_path} - Downloaded images")
+            return True
             
         except KeyboardInterrupt:
             print(f"\n⏸️ Pipeline interrupted by user")
+            return False
         except Exception as e:
             print(f"\n❌ Pipeline error: {e}")
             import traceback
             traceback.print_exc()
+            return False
 
 
 def main():

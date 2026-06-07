@@ -403,7 +403,7 @@ logger = logging.getLogger(__name__)
 class BackgroundUpdateManager:
     """Non-blocking app-triggered pipeline updater with lock/status files."""
 
-    COOLDOWN_SECONDS = 20 * 60 * 60
+    COOLDOWN_SECONDS = 2
 
     def __init__(self):
         self._lock = threading.Lock()
@@ -423,7 +423,25 @@ class BackgroundUpdateManager:
             'last_exit_code': None,
             'last_error': None,
             'last_log_file': str(Config.LOGS_DIR / 'pipeline_update.log'),
+            'last_summary': None,
+            'active_pid': None,
         }
+
+    def _load_pipeline_summary(self) -> dict | None:
+        try:
+            payload = json.loads(Config.METADATA_JSON.read_text(encoding='utf-8'))
+            summary = payload.get('summary') or {}
+            run_details = summary.get('run_details') or {}
+            return {
+                'total_posts': summary.get('total_posts'),
+                'processed_in_range': run_details.get('processed_in_range', 0),
+                'added_posts': run_details.get('added_posts', 0),
+                'updated_posts': run_details.get('updated_posts', 0),
+                'date_range': summary.get('date_range') or {},
+                'extraction_date': summary.get('extraction_date'),
+            }
+        except Exception:
+            return None
 
     def get_status(self) -> dict:
         if self.status_file.exists():
@@ -436,22 +454,56 @@ class BackgroundUpdateManager:
     def _save_status(self, status: dict) -> None:
         safe_save_json(status, self.status_file, create_backup=False)
 
-    def _is_process_running(self) -> bool:
-        if not self.lock_file.exists():
-            return False
+    def _clear_lock(self) -> None:
         try:
-            pid = int(self.lock_file.read_text(encoding='utf-8').strip())
-            os.kill(pid, 0)
-            return True
+            self.lock_file.unlink(missing_ok=True)
         except Exception:
-            try:
-                self.lock_file.unlink(missing_ok=True)
-            except Exception:
-                pass
-            status = self.get_status()
-            status['running'] = False
-            self._save_status(status)
+            pass
+
+    def _pid_matches_pipeline(self, pid: int) -> bool:
+        try:
+            cmdline_path = Path(f'/proc/{pid}/cmdline')
+            if not cmdline_path.exists():
+                return False
+            raw = cmdline_path.read_bytes().decode('utf-8', errors='ignore')
+            cmdline = raw.replace('\x00', ' ')
+            return (
+                'Projects/Vamation/scripts/run_pipeline.py' in cmdline or
+                'Projects/Vamation/ingest/pipeline/integrated_pipeline.py' in cmdline or
+                'python scripts/run_pipeline.py' in cmdline
+            )
+        except Exception:
             return False
+
+    def _is_process_running(self) -> bool:
+        status = self.get_status()
+        pid = status.get('active_pid')
+        if pid is None and self.lock_file.exists():
+            try:
+                pid = int(self.lock_file.read_text(encoding='utf-8').strip())
+            except Exception:
+                pid = None
+
+        if pid is None:
+            self._clear_lock()
+            if status.get('running'):
+                status['running'] = False
+                status['active_pid'] = None
+                self._save_status(status)
+            return False
+
+        try:
+            os.kill(int(pid), 0)
+            if self._pid_matches_pipeline(int(pid)):
+                return True
+        except Exception:
+            pass
+
+        self._clear_lock()
+        status['running'] = False
+        status['active_pid'] = None
+        self._save_status(status)
+        return False
 
     def maybe_trigger_update(self, reason: str = 'app-load') -> dict:
         with self._lock:
@@ -490,7 +542,6 @@ class BackgroundUpdateManager:
                     start_new_session=True,
                 )
 
-            self.lock_file.write_text(str(process.pid), encoding='utf-8')
             status.update({
                 'running': True,
                 'last_triggered_at': self._now_iso(),
@@ -498,17 +549,16 @@ class BackgroundUpdateManager:
                 'last_exit_code': None,
                 'last_error': None,
                 'last_log_file': str(log_file),
+                'active_pid': process.pid,
             })
             self._save_status(status)
+            self.lock_file.write_text(str(process.pid), encoding='utf-8')
 
             def watch_process(pid: int):
                 exit_code = None
                 error_text = None
                 try:
-                    _, exit_code = os.waitpid(pid, 0)
-                    exit_code = os.waitstatus_to_exitcode(exit_code)
-                except ChildProcessError:
-                    exit_code = None
+                    exit_code = process.wait()
                 except Exception as e:
                     error_text = str(e)
                 finally:
@@ -517,13 +567,12 @@ class BackgroundUpdateManager:
                     current['last_finished_at'] = self._now_iso()
                     current['last_exit_code'] = exit_code
                     current['last_error'] = error_text
+                    current['active_pid'] = None
                     if exit_code == 0:
                         current['last_success_at'] = current['last_finished_at']
+                        current['last_summary'] = self._load_pipeline_summary()
                     self._save_status(current)
-                    try:
-                        self.lock_file.unlink(missing_ok=True)
-                    except Exception:
-                        pass
+                    self._clear_lock()
 
             threading.Thread(target=watch_process, args=(process.pid,), daemon=True).start()
 

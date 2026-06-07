@@ -1,0 +1,39 @@
+{
+  "tested_url": "https://www.patreon.com/VAMA/posts",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36",
+  "extra_args": "--no-sandbox,--disable-dev-shm-usage,--disable-blink-features=AutomationControlled,--disable-features=IsolateOrigins,site-per-process,--lang=en-US,--window-size=1440,900",
+  "results": [
+    {
+      "cookie_file": "/home/.z/chat-uploads/cookies - Copy-5f60ccfe942e.txt",
+      "open_stdout": "",
+      "open_stderr": "\u26a0 --profile, --args, --user-agent ignored: daemon already running. Use 'agent-browser close' first to restart with new options.\n\u2717 Chrome exited early (exit code: 13) without writing DevToolsActivePort\n(also tried parsing stderr) Chrome exited before providing DevTools URL\nChrome stderr:\n  [0607/050451.557920:ERROR:chrome/app/chrome_main.cc:171] Multiple targets are not supported in headless mode.\n",
+      "title": "",
+      "title_err": "\u26a0 --profile, --args, --user-agent ignored: daemon already running. Use 'agent-browser close' first to restart with new options.\n\u2717 Chrome exited early (exit code: 13) without writing DevToolsActivePort\n(also tried parsing stderr) Chrome exited before providing DevTools URL\nChrome stderr:\n  [0607/050456.948025:ERROR:chrome/app/chrome_main.cc:171] Multiple targets are not supported in headless mode.\n",
+      "url": "",
+      "url_err": "\u26a0 --profile, --args, --user-agent ignored: daemon already running. Use 'agent-browser close' first to restart with new options.\n\u2717 Chrome exited early (exit code: 13) without writing DevToolsActivePort\n(also tried parsing stderr) Chrome exited before providing DevTools URL\nChrome stderr:\n  [0607/050458.364652:ERROR:chrome/app/chrome_main.cc:171] Multiple targets are not supported in headless mode.\n",
+      "snapshot": "",
+      "snapshot_err": "\u26a0 --profile, --args, --user-agent ignored: daemon already running. Use 'agent-browser close' first to restart with new options.\n\u2717 Chrome exited early (exit code: 13) without writing DevToolsActivePort\n(also tried parsing stderr) Chrome exited before providing DevTools URL\nChrome stderr:\n  [0607/050459.691817:ERROR:chrome/app/chrome_main.cc:171] Multiple targets are not supported in headless mode.\n",
+      "page_state": "",
+      "page_state_err": "\u26a0 --profile, --args, --user-agent ignored: daemon already running. Use 'agent-browser close' first to restart with new options.\n\u2717 Chrome exited early (exit code: 13) without writing DevToolsActivePort\n(also tried parsing stderr) Chrome exited before providing DevTools URL\nChrome stderr:\n  [0607/050502.345319:ERROR:chrome/app/chrome_main.cc:171] Multiple targets are not supported in headless mode.\n",
+      "screenshot": "/home/workspace/Projects/Vamation/experiments/artifacts/cloudflare-trust/page-1.png",
+      "screenshot_stdout": "",
+      "screenshot_stderr": "\u26a0 --profile, --args, --user-agent ignored: daemon already running. Use 'agent-browser close' first to restart with new options.\n\u2717 Chrome exited early (exit code: 13) without writing DevToolsActivePort\n(also tried parsing stderr) Chrome exited before providing DevTools URL\nChrome stderr:\n  [0607/050501.018335:ERROR:chrome/app/chrome_main.cc:171] Multiple targets are not supported in headless mode.\n"
+    },
+    {
+      "cookie_file": "/home/.z/chat-uploads/cookies-5b541d422395.txt",
+      "open_stdout": "",
+      "open_stderr": "\u26a0 --profile, --args, --user-agent ignored: daemon already running. Use 'agent-browser close' first to restart with new options.\n\u2717 Chrome exited early (exit code: 13) without writing DevToolsActivePort\n(also tried parsing stderr) Chrome exited before providing DevTools URL\nChrome stderr:\n  [0607/050517.277948:ERROR:chrome/app/chrome_main.cc:171] Multiple targets are not supported in headless mode.\n",
+      "title": "",
+      "title_err": "\u26a0 --profile, --args, --user-agent ignored: daemon already running. Use 'agent-browser close' first to restart with new options.\n\u2717 Chrome exited early (exit code: 13) without writing DevToolsActivePort\n(also tried parsing stderr) Chrome exited before providing DevTools URL\nChrome stderr:\n  [0607/050522.609178:ERROR:chrome/app/chrome_main.cc:171] Multiple targets are not supported in headless mode.\n",
+      "url": "",
+      "url_err": "\u26a0 --profile, --args, --user-agent ignored: daemon already running. Use 'agent-browser close' first to restart with new options.\n\u2717 Chrome exited early (exit code: 13) without writing DevToolsActivePort\n(also tried parsing stderr) Chrome exited before providing DevTools URL\nChrome stderr:\n  [0607/050523.936147:ERROR:chrome/app/chrome_main.cc:171] Multiple targets are not supported in headless mode.\n",
+      "snapshot": "",
+      "snapshot_err": "\u26a0 --profile, --args, --user-agent ignored: daemon already running. Use 'agent-browser close' first to restart with new options.\n\u2717 Chrome exited early (exit code: 13) without writing DevToolsActivePort\n(also tried parsing stderr) Chrome exited before providing DevTools URL\nChrome stderr:\n  [0607/050525.310487:ERROR:chrome/app/chrome_main.cc:171] Multiple targets are not supported in headless mode.\n",
+      "page_state": "",
+      "page_state_err": "\u26a0 --profile, --args, --user-agent ignored: daemon already running. Use 'agent-browser close' first to restart with new options.\n\u2717 Chrome exited early (exit code: 13) without writing DevToolsActivePort\n(also tried parsing stderr) Chrome exited before providing DevTools URL\nChrome stderr:\n  [0607/050528.121977:ERROR:chrome/app/chrome_main.cc:171] Multiple targets are not supported in headless mode.\n",
+      "screenshot": "/home/workspace/Projects/Vamation/experiments/artifacts/cloudflare-trust/page-2.png",
+      "screenshot_stdout": "",
+      "screenshot_stderr": "\u26a0 --profile, --args, --user-agent ignored: daemon already running. Use 'agent-browser close' first to restart with new options.\n\u2717 Chrome exited early (exit code: 13) without writing DevToolsActivePort\n(also tried parsing stderr) Chrome exited before providing DevTools URL\nChrome stderr:\n  [0607/050526.639931:ERROR:chrome/app/chrome_main.cc:171] Multiple targets are not supported in headless mode.\n"
+    }
+  ]
+}

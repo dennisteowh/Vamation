@@ -1,9 +1,0 @@
-{
-  "cookie_file": "/home/.z/chat-uploads/cookies - Copy-5f60ccfe942e.txt",
-  "open_stdout": "\u2713 Just a moment...\n  https://www.patreon.com/\n",
-  "title": "Just a moment...",
-  "url": "https://www.patreon.com/",
-  "fetch": {
-    "raw": "{\n  \"status\": 403,\n  \"text\": \"{\\\"errors\\\":[{\\\"code\\\":403,\\\"code_name\\\":\\\"Forbidden\\\",\\\"detail\\\":\\\"Forbidden\\\",\\\"status\\\":\\\"403\\\"}]}\",\n  \"url\": \"https://www.patreon.com/api/posts?filter[campaign_id]=13637777&filter[contains_exclusive_posts]=true&filter[is_draft]=false&sort=-published_at&include=attachments,audio,images,poll.choices,poll.current_user_responses.user,poll.current_user_responses.poll_choice,user,user_defined_tags,ti_checks&fields[post]=change_visibility_at,comment_count,content,current_user_can_comment,current_user_can_view,current_user_has_liked,embed,image,is_paid,like_count,min_cents_pledged_to_view,post_file,published_at,patron_count,patreon_url,post_type,pledge_url,preview_asset_type,thumbnail_url,title,upgrade_url,url,was_posted_by_campaign_owner,has_ti_violation&fields[user]=image_url,full_name,url&fields[campaign]=avatar_photo_url,earnings_visibility,is_nsfw,is_monthly,name,url&fields[attachment]=name,url&fields[image]=height,width,url,file_name&json-api-use-default-includes=false&json-api-version=1.0\"\n}\n"
-  }
-}

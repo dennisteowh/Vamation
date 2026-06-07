@@ -40,3 +40,6 @@ cookies.txt
 /webapp/playlists/*_metadata.json
 /webapp/*/*.backup*
 /webapp/js/*.backup*
+# Local experiment outputs
+/experiments/artifacts/
+/experiments/__pycache__/

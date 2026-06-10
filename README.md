@@ -116,7 +116,7 @@ python scripts/run_webapp.py
 
 ## Notes
 
-- Image enhancement is currently disabled on this Zo deployment. The original local Stable Diffusion/SD WebUI workflow is not active here.
+- Image enhancement is enabled by default on this Zo deployment and now runs through Zo image editing rather than the old local Stable Diffusion/SD WebUI path.
 
 ## Notes for Zo migration
 

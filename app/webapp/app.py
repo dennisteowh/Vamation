@@ -147,6 +147,8 @@ import time
 import base64
 import io
 import atexit
+import uuid
+import re
 from collections import deque
 from datetime import datetime
 from pathlib import Path
@@ -208,6 +210,7 @@ except ImportError:
     PANDAS_AVAILABLE = False
 
 from flask import Flask, request, jsonify, send_file, send_from_directory, abort
+from werkzeug.exceptions import HTTPException
 try:
     from flask_cors import CORS
     CORS_AVAILABLE = True
@@ -218,7 +221,7 @@ except ImportError:
 extraction_queue_manager = None
 
 try:
-    from PIL import Image, ImageOps, ImageSequence
+    from PIL import Image, ImageDraw, ImageFilter, ImageOps, ImageSequence, ImageFile
     PIL_AVAILABLE = True
 except ImportError:
     PIL_AVAILABLE = False
@@ -316,6 +319,980 @@ def safe_save_excel(df: 'pd.DataFrame', filepath: Path, sheet_name: str = 'Posts
         raise e
 
 
+def load_post_metadata_file(post_id: str) -> tuple[Path, dict]:
+    """Load per-post metadata JSON for a post."""
+    metadata_path = Config.POST_PAGES_DIR / f"{post_id}_metadata.json"
+    if not metadata_path.exists():
+        raise FileNotFoundError(f"Post metadata file not found for {post_id}")
+
+    with open(metadata_path, 'r', encoding='utf-8') as f:
+        return metadata_path, json.load(f)
+
+
+def ensure_focus_archive(post_metadata: dict) -> dict:
+    """Return the mutable focus archive block, creating it if missing."""
+    focus_archive = post_metadata.get('focus_archive')
+    if not isinstance(focus_archive, dict):
+        focus_archive = {}
+        post_metadata['focus_archive'] = focus_archive
+
+    items = focus_archive.get('items')
+    if not isinstance(items, list):
+        focus_archive['items'] = []
+
+    if not focus_archive.get('last_updated'):
+        focus_archive['last_updated'] = datetime.now().isoformat()
+
+    return focus_archive
+
+
+def ensure_enhancement_presets(post_metadata: dict) -> dict:
+    """Return the mutable enhancement preset block, creating it if missing."""
+    presets = post_metadata.get('enhancement_presets')
+    if not isinstance(presets, dict):
+        presets = {}
+        post_metadata['enhancement_presets'] = presets
+
+    items = presets.get('items')
+    if not isinstance(items, list):
+        presets['items'] = []
+
+    if not presets.get('last_updated'):
+        presets['last_updated'] = datetime.now().isoformat()
+
+    return presets
+
+
+def get_focus_archive_dir(post_id: str) -> Path:
+    """Return the on-disk directory for a post's archived focus assets."""
+    archive_dir = FileOperationsManager.get_post_extracted_dir(post_id) / '.vamation-focus'
+    archive_dir.mkdir(parents=True, exist_ok=True)
+    return archive_dir
+
+
+def build_enhancement_preset_payload(post_id: str, post_metadata: dict) -> dict:
+    """Build the API response payload for saved enhancement presets."""
+    presets = ensure_enhancement_presets(post_metadata)
+    focus_archive = ensure_focus_archive(post_metadata)
+    focus_items_by_id = {
+        item.get('asset_id'): item
+        for item in focus_archive.get('items', [])
+        if item.get('asset_id')
+    }
+
+    items = []
+    for preset in presets.get('items', []):
+        if not isinstance(preset, dict):
+            continue
+
+        preset_id = preset.get('preset_id')
+        name = (preset.get('name') or '').strip()
+        prompt_text = preset.get('prompt_text') or ''
+        if not preset_id or not name or not prompt_text:
+            continue
+
+        reference_ids = []
+        reference_items = []
+        for asset_id in preset.get('reference_asset_ids') or []:
+            if not asset_id or asset_id in reference_ids:
+                continue
+            reference_ids.append(asset_id)
+            asset = focus_items_by_id.get(asset_id)
+            if not asset:
+                continue
+            reference_items.append({
+                'asset_id': asset_id,
+                'asset_type': asset.get('asset_type', 'raw_crop'),
+                'image_url': f"/api/enhance/{post_id}/focus-assets/{asset_id}/image",
+            })
+
+        items.append({
+            'preset_id': preset_id,
+            'name': name,
+            'prompt_text': prompt_text,
+            'reference_asset_ids': reference_ids,
+            'reference_count': len(reference_ids),
+            'reference_items': reference_items,
+            'created_at': preset.get('created_at'),
+            'last_used_at': preset.get('last_used_at'),
+        })
+
+    items.sort(key=lambda item: item.get('created_at') or '', reverse=True)
+    return {
+        'items': items,
+        'count': len(items),
+        'last_updated': presets.get('last_updated'),
+    }
+
+
+def is_internal_edit_artifact_path(path: Path) -> bool:
+    """Return True when a path lives inside Vamation's per-post internal edit artifact folders."""
+    blocked_parts = {'.vamation-focus', '.vamation-edit-runs'}
+    return any(part in blocked_parts for part in path.parts)
+
+
+def get_edit_run_root(post_id: str) -> Path:
+    """Return the on-disk root for packaged edit runs for a post."""
+    run_root = FileOperationsManager.get_post_extracted_dir(post_id) / '.vamation-edit-runs'
+    run_root.mkdir(parents=True, exist_ok=True)
+    return run_root
+
+
+def clamp_int(value: int, low: int, high: int) -> int:
+    return max(low, min(value, high))
+
+
+def normalize_pixel_box(x: int, y: int, w: int, h: int, image_size: tuple[int, int]) -> tuple[int, int, int, int]:
+    image_w, image_h = image_size
+    left = clamp_int(x, 0, image_w)
+    top = clamp_int(y, 0, image_h)
+    right = clamp_int(x + max(w, 1), 0, image_w)
+    bottom = clamp_int(y + max(h, 1), 0, image_h)
+
+    if right <= left:
+        right = min(image_w, left + 1)
+    if bottom <= top:
+        bottom = min(image_h, top + 1)
+
+    return left, top, right, bottom
+
+
+def expand_pixel_box(box: tuple[int, int, int, int], padding: int, image_size: tuple[int, int]) -> tuple[int, int, int, int]:
+    left, top, right, bottom = box
+    image_w, image_h = image_size
+    return (
+        clamp_int(left - padding, 0, image_w),
+        clamp_int(top - padding, 0, image_h),
+        clamp_int(right + padding, 0, image_w),
+        clamp_int(bottom + padding, 0, image_h),
+    )
+
+
+def relative_pixel_box(inner: tuple[int, int, int, int], outer: tuple[int, int, int, int]) -> tuple[int, int, int, int]:
+    return (
+        inner[0] - outer[0],
+        inner[1] - outer[1],
+        inner[2] - outer[0],
+        inner[3] - outer[1],
+    )
+
+
+def make_binary_mask(size: tuple[int, int], box: tuple[int, int, int, int], shape: str = 'rect') -> 'Image.Image':
+    if not PIL_AVAILABLE:
+        raise RuntimeError("Pillow is required for masked focus editing")
+
+    mask = Image.new('L', size, 0)
+    draw = ImageDraw.Draw(mask)
+    if shape == 'ellipse':
+        draw.ellipse(box, fill=255)
+    else:
+        draw.rectangle(box, fill=255)
+    return mask
+
+
+def resolve_focus_reference_items(post_id: str, post_metadata: dict, asset_ids: list[str]) -> list[dict]:
+    """Resolve selected focus asset ids to concrete archive items with files."""
+    focus_archive = ensure_focus_archive(post_metadata)
+    items_by_id = {
+        item.get('asset_id'): item
+        for item in focus_archive.get('items', [])
+        if item.get('asset_id')
+    }
+
+    resolved = []
+    seen = set()
+    for asset_id in asset_ids:
+        if not asset_id or asset_id in seen:
+            continue
+        seen.add(asset_id)
+
+        item = items_by_id.get(asset_id)
+        if not item:
+            raise ValueError(f"Unknown focus reference asset: {asset_id}")
+
+        asset_path = get_focus_archive_dir(post_id) / item.get('filename', '')
+        if not asset_path.exists():
+            raise ValueError(f"Missing focus reference file for asset: {asset_id}")
+
+        resolved.append({
+            **item,
+            'absolute_path': str(asset_path),
+        })
+
+    return resolved
+
+
+def create_reference_edit_run(
+    post_id: str,
+    source_image_path: Path,
+    source_image_filename: str,
+    bbox: dict,
+    prompt_text: str,
+    reference_items: list[dict],
+) -> dict:
+    """Package the current edit request into a masked-focus run folder."""
+    if not PIL_AVAILABLE:
+        raise RuntimeError("Pillow is required for masked focus editing")
+
+    timestamp = datetime.now().strftime('%Y%m%dT%H%M%S%f')
+    run_id = f"{source_image_path.stem}-{timestamp}"
+    run_dir = get_edit_run_root(post_id) / run_id
+    run_dir.mkdir(parents=True, exist_ok=True)
+
+    with Image.open(source_image_path) as img:
+        try:
+            img.seek(0)
+        except Exception:
+            pass
+        source = ImageOps.exif_transpose(img.copy()).convert('RGBA')
+
+    width, height = source.size
+    x1 = max(0.0, min(1.0, float(bbox['x1'])))
+    y1 = max(0.0, min(1.0, float(bbox['y1'])))
+    x2 = max(0.0, min(1.0, float(bbox['x2'])))
+    y2 = max(0.0, min(1.0, float(bbox['y2'])))
+
+    mask_box = normalize_pixel_box(
+        int(round(min(x1, x2) * width)),
+        int(round(min(y1, y2) * height)),
+        int(round(abs(x2 - x1) * width)),
+        int(round(abs(y2 - y1) * height)),
+        source.size,
+    )
+    context_box = expand_pixel_box(mask_box, Config.ENHANCE_CONTEXT_PAD, source.size)
+    rel_mask_box = relative_pixel_box(mask_box, context_box)
+
+    context_crop = source.crop(context_box)
+    blurred_context = context_crop.filter(ImageFilter.GaussianBlur(radius=Config.ENHANCE_BLUR_RADIUS))
+    target_mask = make_binary_mask(context_crop.size, rel_mask_box, Config.ENHANCE_MASK_SHAPE)
+
+    focus_input = blurred_context.copy()
+    focus_input.paste(context_crop, (0, 0), target_mask)
+
+    focus_input_path = run_dir / 'focus-input.png'
+    focus_input.save(focus_input_path, format='PNG')
+    mask_path = run_dir / 'mask.png'
+    target_mask.save(mask_path, format='PNG')
+
+    prompt_path = run_dir / 'prompt.txt'
+    prompt_path.write_text((prompt_text or '').rstrip() + '\n', encoding='utf-8')
+
+    references_dir = run_dir / 'references'
+    references_dir.mkdir(parents=True, exist_ok=True)
+    packaged_references = []
+
+    for index, item in enumerate(reference_items, start=1):
+        source_ref_path = Path(item['absolute_path'])
+        suffix = source_ref_path.suffix or '.png'
+        packaged_name = f"{index:02d}-{item['asset_id']}-{item['asset_type']}{suffix}"
+        packaged_path = references_dir / packaged_name
+        shutil.copy2(source_ref_path, packaged_path)
+        packaged_references.append({
+            'asset_id': item['asset_id'],
+            'asset_type': item.get('asset_type'),
+            'source_image_filename': item.get('source_image_filename'),
+            'source_enhanced_filename': item.get('source_enhanced_filename'),
+            'filename': packaged_name,
+            'absolute_path': str(packaged_path),
+        })
+
+    request_payload = {
+        'run_id': run_id,
+        'created_at': datetime.now().isoformat(),
+        'post_id': post_id,
+        'source_image_filename': source_image_filename,
+        'source_image_path': str(source_image_path),
+        'focus_input_path': str(focus_input_path),
+        'mask_image': str(mask_path),
+        'prompt_file': str(prompt_path),
+        'bbox': {
+            'x1': x1,
+            'y1': y1,
+            'x2': x2,
+            'y2': y2,
+        },
+        'image_size': {'width': width, 'height': height},
+        'mask_box': {
+            'left': mask_box[0],
+            'top': mask_box[1],
+            'right': mask_box[2],
+            'bottom': mask_box[3],
+        },
+        'context_box': {
+            'left': context_box[0],
+            'top': context_box[1],
+            'right': context_box[2],
+            'bottom': context_box[3],
+        },
+        'relative_mask_box': {
+            'left': rel_mask_box[0],
+            'top': rel_mask_box[1],
+            'right': rel_mask_box[2],
+            'bottom': rel_mask_box[3],
+        },
+        'settings': {
+            'mask_shape': Config.ENHANCE_MASK_SHAPE,
+            'context_pad': Config.ENHANCE_CONTEXT_PAD,
+            'blur_radius': Config.ENHANCE_BLUR_RADIUS,
+            'merge_feather': Config.ENHANCE_MERGE_FEATHER,
+        },
+        'reference_assets': packaged_references,
+    }
+    safe_save_json(request_payload, run_dir / 'request.json', create_backup=False)
+    safe_save_json(
+        {
+            'run_id': run_id,
+            'status': 'prepared',
+            'created_at': request_payload['created_at'],
+            'artifacts': {
+                'focus_input': str(focus_input_path),
+                'mask_image': str(mask_path),
+                'prompt_file': str(prompt_path),
+                'request': str(run_dir / 'request.json'),
+                'references_dir': str(references_dir),
+            },
+            'reference_count': len(packaged_references),
+        },
+        run_dir / 'run_manifest.json',
+        create_backup=False,
+    )
+
+    return {
+        'run_id': run_id,
+        'run_dir': str(run_dir),
+        'focus_input_path': str(focus_input_path),
+        'mask_image_path': str(mask_path),
+        'prompt_file': str(prompt_path),
+        'reference_count': len(packaged_references),
+        'reference_assets': packaged_references,
+    }
+
+
+def crop_image_to_bbox(image_path: Path, bbox: dict) -> tuple['Image.Image', dict]:
+    """Crop an image using a normalized 0-1 bbox."""
+    if not PIL_AVAILABLE:
+        raise RuntimeError("Pillow is required for focus archive cropping")
+
+    required_keys = {'x1', 'y1', 'x2', 'y2'}
+    if not isinstance(bbox, dict) or not required_keys.issubset(bbox.keys()):
+        raise ValueError("A valid normalized bounding box is required")
+
+    with Image.open(image_path) as img:
+        try:
+            img.seek(0)
+        except Exception:
+            pass
+        source = ImageOps.exif_transpose(img.copy())
+
+    width, height = source.size
+    x1 = max(0.0, min(1.0, float(bbox['x1'])))
+    y1 = max(0.0, min(1.0, float(bbox['y1'])))
+    x2 = max(0.0, min(1.0, float(bbox['x2'])))
+    y2 = max(0.0, min(1.0, float(bbox['y2'])))
+
+    left = max(0, min(width - 1, int(round(min(x1, x2) * width))))
+    top = max(0, min(height - 1, int(round(min(y1, y2) * height))))
+    right = max(left + 1, min(width, int(round(max(x1, x2) * width))))
+    bottom = max(top + 1, min(height, int(round(max(y1, y2) * height))))
+
+    crop = source.crop((left, top, right, bottom))
+    crop_box = {
+        'left': left,
+        'top': top,
+        'right': right,
+        'bottom': bottom,
+        'width': right - left,
+        'height': bottom - top,
+    }
+    return crop, crop_box
+
+
+def append_focus_archive_item(
+    post_id: str,
+    post_metadata: dict,
+    source_image_path: Path,
+    source_image_filename: str,
+    asset_type: str,
+    bbox: dict,
+    prompt_text: str = '',
+    reference_asset_ids: Optional[list[str]] = None,
+    source_run_id: Optional[str] = None,
+    source_enhanced_filename: Optional[str] = None,
+) -> dict:
+    """Create a focus archive crop, persist it on disk, and register it in metadata."""
+    crop, crop_box = crop_image_to_bbox(source_image_path, bbox)
+    archive_dir = get_focus_archive_dir(post_id)
+    asset_id = uuid.uuid4().hex[:12]
+    asset_filename = f"{asset_type}-{asset_id}.png"
+    asset_path = archive_dir / asset_filename
+    crop.save(asset_path, format='PNG')
+
+    focus_archive = ensure_focus_archive(post_metadata)
+    item = {
+        'asset_id': asset_id,
+        'asset_type': asset_type,
+        'filename': asset_filename,
+        'source_image_filename': source_image_filename,
+        'source_enhanced_filename': source_enhanced_filename,
+        'bbox': {
+            'x1': float(bbox['x1']),
+            'y1': float(bbox['y1']),
+            'x2': float(bbox['x2']),
+            'y2': float(bbox['y2']),
+        },
+        'crop_box': crop_box,
+        'prompt_text': prompt_text or '',
+        'reference_asset_ids': list(reference_asset_ids or []),
+        'source_run_id': source_run_id,
+        'created_at': datetime.now().isoformat(),
+        'file_size': asset_path.stat().st_size,
+        'width': crop_box['width'],
+        'height': crop_box['height'],
+    }
+    focus_archive['items'].insert(0, item)
+    focus_archive['last_updated'] = datetime.now().isoformat()
+    return item
+
+
+def merge_reference_edit_run(run_dir: Path, output_path: Path) -> dict:
+    """Merge a locally edited focus output back into the original image."""
+    if not PIL_AVAILABLE:
+        raise RuntimeError("Pillow is required for masked focus editing")
+
+    request_path = run_dir / 'request.json'
+    if not request_path.exists():
+        raise FileNotFoundError(f"Missing edit request metadata: {request_path}")
+
+    request_payload = json.loads(request_path.read_text(encoding='utf-8'))
+    original_path = Path(request_payload['source_image_path'])
+    focus_output_path = run_dir / 'focus-output.png'
+    if not focus_output_path.exists():
+        raise FileNotFoundError(f"Missing focus output image: {focus_output_path}")
+
+    with Image.open(original_path) as original_img:
+        original = ImageOps.exif_transpose(original_img.copy()).convert('RGBA')
+    with Image.open(focus_output_path) as focus_output_img:
+        focus_output = ImageOps.exif_transpose(focus_output_img.copy()).convert('RGBA')
+
+    context_box_payload = request_payload['context_box']
+    rel_mask_payload = request_payload['relative_mask_box']
+    crop_box = (
+        int(context_box_payload['left']),
+        int(context_box_payload['top']),
+        int(context_box_payload['right']),
+        int(context_box_payload['bottom']),
+    )
+    mask_box = (
+        int(rel_mask_payload['left']),
+        int(rel_mask_payload['top']),
+        int(rel_mask_payload['right']),
+        int(rel_mask_payload['bottom']),
+    )
+    original_context = original.crop(crop_box)
+    if focus_output.size != original_context.size:
+        focus_output = focus_output.resize(original_context.size, Image.Resampling.LANCZOS)
+
+    settings = request_payload.get('settings', {})
+    merge_mask = make_binary_mask(
+        original_context.size,
+        mask_box,
+        settings.get('mask_shape', Config.ENHANCE_MASK_SHAPE),
+    )
+    feather = float(settings.get('merge_feather', Config.ENHANCE_MERGE_FEATHER))
+    if feather > 0:
+        merge_mask = merge_mask.filter(ImageFilter.GaussianBlur(radius=feather))
+
+    merge_mask_path = run_dir / 'merge-mask.png'
+    merge_mask.save(merge_mask_path, format='PNG')
+
+    merged_context = Image.composite(focus_output, original_context, merge_mask)
+    merged_full = original.copy()
+    merged_full.paste(merged_context, (crop_box[0], crop_box[1]))
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    merged_full.convert('RGB').save(output_path)
+
+    manifest_path = run_dir / 'run_manifest.json'
+    if manifest_path.exists():
+        manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+    else:
+        manifest = {'run_id': request_payload.get('run_id')}
+    manifest.update({
+        'status': 'merged',
+        'updated_at': datetime.now().isoformat(),
+        'artifacts': {
+            **manifest.get('artifacts', {}),
+            'focus_output': str(focus_output_path),
+            'merge_mask': str(merge_mask_path),
+            'merged_output': str(output_path),
+        },
+    })
+    safe_save_json(manifest, manifest_path, create_backup=False)
+
+    return {
+        'focus_output_path': str(focus_output_path),
+        'merge_mask_path': str(merge_mask_path),
+        'merged_output_path': str(output_path),
+    }
+
+
+def get_zo_access_token() -> Optional[str]:
+    token = os.environ.get('ZO_CLIENT_IDENTITY_TOKEN') or os.environ.get('ZO_API_KEY')
+    if not token or token == 'none':
+        return None
+    return token
+
+
+def launch_zo_edit_request(run_dir: Path, prompt: str, model_name: Optional[str] = None) -> subprocess.Popen:
+    """Ask Zo to use its image-edit tool and save a local focus output."""
+    token = get_zo_access_token()
+    if not token:
+        raise RuntimeError("ZO_CLIENT_IDENTITY_TOKEN is required for image enhancement")
+
+    request_payload = {
+        'input': prompt,
+        'output_format': {
+            'type': 'object',
+            'properties': {
+                'success': {'type': 'boolean'},
+            },
+            'required': ['success'],
+        },
+    }
+    if model_name:
+        request_payload['model_name'] = model_name
+
+    request_path = run_dir / 'zo-edit-request.json'
+    response_path = run_dir / 'zo-edit-response.json'
+    error_path = run_dir / 'zo-edit-error.txt'
+    safe_save_json(request_payload, request_path, create_backup=False)
+
+    child_code = """
+import json, os, sys, urllib.request
+request_path, response_path, error_path = sys.argv[1:4]
+token = os.environ.get('ZO_CLIENT_IDENTITY_TOKEN') or os.environ.get('ZO_API_KEY')
+if not token or token == 'none':
+    with open(error_path, 'w', encoding='utf-8') as f:
+        f.write('Missing Zo access token')
+    raise SystemExit(1)
+payload = json.loads(open(request_path, 'r', encoding='utf-8').read())
+body = json.dumps(payload).encode('utf-8')
+req = urllib.request.Request(
+    'https://api.zo.computer/zo/ask',
+    data=body,
+    headers={
+        'Authorization': token,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+    },
+)
+try:
+    with urllib.request.urlopen(req, timeout=900) as resp:
+        raw = resp.read().decode('utf-8')
+    with open(response_path, 'w', encoding='utf-8') as f:
+        f.write(raw)
+except Exception as exc:
+    with open(error_path, 'w', encoding='utf-8') as f:
+        f.write(str(exc))
+    raise
+"""
+
+    return subprocess.Popen(
+        [sys.executable, '-c', child_code, str(request_path), str(response_path), str(error_path)],
+        cwd=str(run_dir),
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        env=os.environ.copy(),
+    )
+
+
+def build_zo_image_edit_prompt(
+    prepared_run: dict,
+    positive_prompt: str,
+    reference_items: list[dict],
+    output_path: Path,
+) -> str:
+    reference_lines = []
+    for item in reference_items[:3]:
+        reference_path = Path(item['absolute_path'])
+        reference_lines.append(
+            f"- {reference_path} ({item.get('asset_type', 'reference')}, source {item.get('source_image_filename', '')})"
+        )
+    references_block = "\n".join(reference_lines) if reference_lines else "- none"
+
+    return (
+        "Use the edit image tool powered by Nano Banana.\n"
+        f"Primary image to edit: {prepared_run['focus_input_path']}\n"
+        "Additional focus references to consult if your tool supports them:\n"
+        f"{references_block}\n\n"
+        "Edit instructions:\n"
+        f"{positive_prompt.strip()}\n\n"
+        "Hard constraints:\n"
+        "- Only edit the target content in the main image.\n"
+        "- Preserve the existing anime art style, linework, colours, and surrounding context.\n"
+        "- Keep the canvas size identical to the input image.\n"
+        "- Save the edited result exactly to this absolute PNG path: "
+        f"{output_path}\n"
+        "- Do not save anywhere else.\n"
+        "- Return JSON only."
+    )
+
+
+def wait_for_complete_focus_output(
+    zo_process: subprocess.Popen,
+    focus_output_path: Path,
+    timeout_seconds: float = 240,
+    poll_interval: float = 0.5,
+) -> None:
+    """Wait for Zo to finish and verify the output image can be fully loaded."""
+    deadline = time.time() + timeout_seconds
+
+    while time.time() < deadline:
+        exit_code = zo_process.poll()
+        if exit_code is None:
+            time.sleep(poll_interval)
+            continue
+
+        error_path = focus_output_path.parent / 'zo-edit-error.txt'
+        response_path = focus_output_path.parent / 'zo-edit-response.json'
+
+        if exit_code != 0:
+            error_message = None
+            if error_path.exists():
+                error_message = error_path.read_text(encoding='utf-8').strip()
+            elif response_path.exists():
+                error_message = response_path.read_text(encoding='utf-8').strip()
+            raise RuntimeError(error_message or f"Zo image edit request exited with status {exit_code}")
+
+        if not focus_output_path.exists() or focus_output_path.stat().st_size <= 0:
+            raise RuntimeError("Zo image edit completed without writing focus-output.png")
+
+        last_error = None
+        verify_deadline = min(deadline, time.time() + 15)
+        while time.time() < verify_deadline:
+            try:
+                with Image.open(focus_output_path) as focus_output_img:
+                    focus_output_img.load()
+                return
+            except Exception as exc:
+                last_error = exc
+                time.sleep(0.25)
+
+        raise RuntimeError(f"Zo image edit wrote an unreadable focus output: {last_error}")
+
+    if zo_process.poll() is None:
+        zo_process.terminate()
+    raise TimeoutError("Timed out waiting for Zo image edit output")
+
+
+def run_enhancement_pipeline(post_id: str, filename: str, config_data: dict) -> dict:
+    """Run the full masked-focus enhancement pipeline and return the success payload."""
+    reference_asset_ids = config_data.get('reference_asset_ids') or []
+    reference_items = []
+    prompt_text = (config_data.get('prompt') or '').strip()
+    custom_mask = config_data.get('custom_mask')
+
+    if not prompt_text:
+        raise ValueError("A prompt is required")
+    if not custom_mask:
+        raise ValueError("A manual selection is required")
+    if not REQUESTS_AVAILABLE or not PIL_AVAILABLE:
+        raise RuntimeError("Required libraries not available")
+    if not get_zo_access_token():
+        raise RuntimeError("Zo image editing is not configured on this host")
+
+    image_path = FileOperationsManager.get_post_extracted_dir(post_id) / filename
+    if not image_path.exists():
+        raise FileNotFoundError("Image not found")
+
+    if reference_asset_ids:
+        _, post_metadata = load_post_metadata_file(post_id)
+        reference_items = resolve_focus_reference_items(post_id, post_metadata, reference_asset_ids)
+
+    stem = image_path.stem
+    suffix = image_path.suffix
+    base_stem = re.sub(r'_enhanced\d+$', '', stem)
+    iteration = 1
+    while True:
+        enhanced_filename = f"{base_stem}_enhanced{iteration:03d}{suffix}"
+        enhanced_path = image_path.parent / enhanced_filename
+        if not enhanced_path.exists():
+            break
+        iteration += 1
+
+    prepared_run = create_reference_edit_run(
+        post_id=post_id,
+        source_image_path=image_path,
+        source_image_filename=filename,
+        bbox=custom_mask,
+        prompt_text=prompt_text,
+        reference_items=reference_items,
+    )
+
+    run_dir = Path(prepared_run['run_dir'])
+    focus_output_path = run_dir / 'focus-output.png'
+    prompt = build_zo_image_edit_prompt(prepared_run, prompt_text, reference_items, focus_output_path)
+    zo_process = launch_zo_edit_request(
+        run_dir,
+        prompt,
+        model_name=Config.ZO_IMAGE_ORCHESTRATOR_MODEL,
+    )
+
+    wait_for_complete_focus_output(zo_process, focus_output_path)
+
+    merge_reference_edit_run(run_dir, enhanced_path)
+    logger.info(f"Enhanced image saved via Zo image edit: {enhanced_path} (iteration {iteration})")
+
+    enhancement_config = {
+        'prompt': prompt_text,
+        'provider': 'zo-nano-banana',
+        'reference_asset_ids': [item['asset_id'] for item in reference_items],
+        'reference_asset_count': len(reference_items),
+        'source_run_id': prepared_run['run_id'],
+        'focus_input_path': prepared_run['focus_input_path'],
+        'focus_output_path': str(focus_output_path),
+    }
+    return {
+        "enhanced_filename": enhanced_filename,
+        "original_filename": filename,
+        "config": enhancement_config,
+        "source_run_id": prepared_run['run_id'],
+        "reference_asset_count": len(reference_items),
+    }
+
+
+class EnhancementJobManager:
+    """Run enhancement requests asynchronously so the browser can poll for completion."""
+
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._jobs: Dict[str, Dict[str, Any]] = {}
+
+    def start_job(self, post_id: str, filename: str, config_data: dict) -> str:
+        job_id = uuid.uuid4().hex
+        now = datetime.now().isoformat()
+        with self._lock:
+            self._jobs[job_id] = {
+                'job_id': job_id,
+                'post_id': post_id,
+                'filename': filename,
+                'status': 'queued',
+                'created_at': now,
+                'updated_at': now,
+                'result': None,
+                'error': None,
+            }
+
+        thread = threading.Thread(
+            target=self._run_job,
+            args=(job_id, post_id, filename, dict(config_data)),
+            daemon=True,
+        )
+        thread.start()
+        return job_id
+
+    def _run_job(self, job_id: str, post_id: str, filename: str, config_data: dict) -> None:
+        self._update(job_id, status='running')
+        try:
+            result = run_enhancement_pipeline(post_id, filename, config_data)
+            self._update(job_id, status='succeeded', result=result)
+        except Exception as exc:
+            logger.error(f"Error enhancing {post_id}/{filename} in job {job_id}: {exc}")
+            self._update(job_id, status='failed', error=str(exc))
+
+    def _update(self, job_id: str, **updates: Any) -> None:
+        with self._lock:
+            job = self._jobs.get(job_id)
+            if not job:
+                return
+            job.update(updates)
+            job['updated_at'] = datetime.now().isoformat()
+
+    def get_job(self, job_id: str) -> Optional[Dict[str, Any]]:
+        with self._lock:
+            job = self._jobs.get(job_id)
+            return dict(job) if job else None
+
+
+enhancement_job_manager = EnhancementJobManager()
+
+
+def canonical_base_filename(filename: str) -> str:
+    """Strip Vamation enhancement iteration suffixes from a filename."""
+    path = Path(filename)
+    stem = re.sub(r'_enhanced\d+$', '', path.stem)
+    return stem + path.suffix
+
+
+def ensure_image_alternate_metadata(img_entry: dict) -> None:
+    """Ensure a gallery image entry has the alternate-version structure."""
+    current_filename = img_entry.get('filename')
+    if not current_filename:
+        return
+
+    base_filename = (
+        img_entry.get('base_image_filename')
+        or img_entry.get('original_filename')
+        or canonical_base_filename(current_filename)
+    )
+    img_entry['base_image_filename'] = base_filename
+    img_entry['original_filename'] = base_filename
+    img_entry['active_alternate_filename'] = current_filename
+
+    alternates = img_entry.get('alternate_versions')
+    if not isinstance(alternates, list):
+        alternates = []
+
+    by_filename = {}
+    normalized = []
+    for alt in alternates:
+        if not isinstance(alt, dict):
+            continue
+        alt_filename = alt.get('filename')
+        if not alt_filename or alt_filename in by_filename:
+            continue
+        by_filename[alt_filename] = alt
+        normalized.append(alt)
+
+    if base_filename not in by_filename:
+        normalized.insert(0, {
+            'filename': base_filename,
+            'kind': 'original',
+            'created_at': img_entry.get('enhancement_date') or img_entry.get('file_info', {}).get('modified') or datetime.now().isoformat(),
+            'source_run_id': None,
+            'prompt_text': '',
+            'active': current_filename == base_filename,
+        })
+
+    if current_filename not in {alt.get('filename') for alt in normalized}:
+        normalized.append({
+            'filename': current_filename,
+            'kind': 'enhanced' if current_filename != base_filename else 'original',
+            'created_at': img_entry.get('enhancement_date') or datetime.now().isoformat(),
+            'source_run_id': None,
+            'prompt_text': img_entry.get('enhancement_config', {}).get('prompt', ''),
+            'active': True,
+        })
+
+    for alt in normalized:
+        alt['active'] = alt.get('filename') == current_filename
+        alt.setdefault('kind', 'original' if alt.get('filename') == base_filename else 'enhanced')
+        alt.setdefault('created_at', datetime.now().isoformat())
+        alt.setdefault('source_run_id', None)
+        alt.setdefault('prompt_text', '')
+
+    img_entry['alternate_versions'] = normalized
+
+
+def find_image_entry_by_variant(images: list[dict], filename: str) -> Optional[dict]:
+    """Find a gallery image entry by active filename, base filename, or any stored alternate."""
+    target_base = canonical_base_filename(filename)
+    for img_entry in images:
+        current_filename = img_entry.get('filename')
+        if current_filename == filename:
+            return img_entry
+
+        if img_entry.get('base_image_filename') == target_base:
+            return img_entry
+
+        for alt in img_entry.get('alternate_versions', []) or []:
+            if alt.get('filename') == filename:
+                return img_entry
+    return None
+
+
+def add_or_update_alternate_version(
+    img_entry: dict,
+    alt_filename: str,
+    *,
+    kind: str,
+    source_run_id: Optional[str] = None,
+    prompt_text: str = '',
+    created_at: Optional[str] = None,
+) -> None:
+    """Insert or refresh an alternate version entry and mark it active."""
+    ensure_image_alternate_metadata(img_entry)
+    alternates = img_entry.get('alternate_versions', [])
+    created_at = created_at or datetime.now().isoformat()
+
+    target = None
+    for alt in alternates:
+        if alt.get('filename') == alt_filename:
+            target = alt
+            break
+
+    if target is None:
+        target = {
+            'filename': alt_filename,
+            'kind': kind,
+            'created_at': created_at,
+            'source_run_id': source_run_id,
+            'prompt_text': prompt_text,
+        }
+        alternates.append(target)
+    else:
+        target['kind'] = kind
+        target['created_at'] = created_at
+        target['source_run_id'] = source_run_id
+        target['prompt_text'] = prompt_text
+
+    for alt in alternates:
+        alt['active'] = alt.get('filename') == alt_filename
+
+    img_entry['filename'] = alt_filename
+    img_entry['active_alternate_filename'] = alt_filename
+
+
+def build_alternate_payload(post_id: str, img_entry: dict) -> dict:
+    """Build the API response payload for a gallery image's alternates."""
+    ensure_image_alternate_metadata(img_entry)
+    base_filename = img_entry['base_image_filename']
+    active_filename = img_entry.get('filename')
+    alternates = []
+    for alt in img_entry.get('alternate_versions', []):
+        alt_filename = alt.get('filename')
+        if not alt_filename:
+            continue
+        alternates.append({
+            'filename': alt_filename,
+            'kind': alt.get('kind', 'enhanced'),
+            'created_at': alt.get('created_at'),
+            'source_run_id': alt.get('source_run_id'),
+            'prompt_text': alt.get('prompt_text', ''),
+            'active': alt_filename == active_filename,
+            'display_label': 'Original' if alt_filename == base_filename else alt_filename,
+            'image_url': f"/api/images/content/{post_id}/{alt_filename}",
+        })
+
+    alternates.sort(key=lambda item: (0 if item['filename'] == base_filename else 1, item.get('created_at') or ''))
+    return {
+        'base_image_filename': base_filename,
+        'active_filename': active_filename,
+        'alternate_count': len(alternates),
+        'alternates': alternates,
+    }
+
+
+def regenerate_post_html_from_metadata(post_id: str, post_metadata: dict) -> None:
+    """Regenerate single + cascade HTML from already-updated per-post metadata."""
+    post_for_html = {
+        'post_id': post_id,
+        'revised_post_name': post_metadata.get('post_name', ''),
+        'post_name': post_metadata.get('post_name', ''),
+        'post_date': post_metadata.get('post_date', ''),
+        'cascade_metadata': post_metadata.get('cascade_metadata', {}),
+    }
+
+    single_html = FileOperationsManager._create_single_view_html(post_id, post_for_html)
+    single_path = Config.POST_PAGES_DIR / f"{post_id}.html"
+    with open(single_path, 'w', encoding='utf-8') as f:
+        f.write(single_html)
+
+    cascade_html = FileOperationsManager._create_cascade_view_html(post_id, post_for_html)
+    cascade_path = Config.POST_PAGES_DIR / f"{post_id}_cascade.html"
+    with open(cascade_path, 'w', encoding='utf-8') as f:
+        f.write(cascade_html)
+
+
 # Configuration
 class Config:
     PROJECT_ROOT = PATH_PROJECT_ROOT
@@ -354,31 +1331,18 @@ class Config:
     MAX_CONCURRENT_EXTRACTIONS = int(os.environ.get('MAX_CONCURRENT_EXTRACTIONS', '2'))
     EXTRACTION_STATUS_TTL_SECONDS = int(os.environ.get('EXTRACTION_STATUS_TTL_SECONDS', '300'))
     
-    # SD WebUI Configuration
+    ENHANCE_CONTEXT_PAD = int(os.environ.get('VAMATION_ENHANCE_CONTEXT_PAD', '80'))
+    ENHANCE_BLUR_RADIUS = float(os.environ.get('VAMATION_ENHANCE_BLUR_RADIUS', '10'))
+    ENHANCE_MERGE_FEATHER = float(os.environ.get('VAMATION_ENHANCE_MERGE_FEATHER', '6'))
+    ENHANCE_MASK_SHAPE = os.environ.get('VAMATION_ENHANCE_MASK_SHAPE', 'rect')
+    ZO_IMAGE_ORCHESTRATOR_MODEL = os.environ.get('VAMATION_ZO_IMAGE_ORCHESTRATOR_MODEL', 'zo:google/gemini-3.1-pro-preview')
     SD_WEBUI_URL = "http://127.0.0.1:7861"
-    SD_WEBUI_PATH = r"D:\3D Objects\sd.webui\webui"  # Path to SD WebUI installation
-    SD_WEBUI_STARTUP_TIMEOUT = 120  # seconds to wait for SD WebUI to start
-    KEEP_WEBUI_ALIVE = os.environ.get('KEEP_WEBUI_ALIVE', 'false').lower() == 'true'  # Set to False to shut down SD WebUI when app closes (useful for development)
+    SD_WEBUI_PATH = r"D:\3D Objects\sd.webui\webui"
+    SD_WEBUI_STARTUP_TIMEOUT = 120
+    KEEP_WEBUI_ALIVE = False
+    YOLO_MODEL_PATH = None
     
-    # Eye detection model (optional YOLO model path)
-    YOLO_MODEL_PATH = None  # Set to path of custom YOLO model if available
-    
-    # Inpainting defaults
-    INPAINT_CONFIG = {
-        "prompt": "masterpiece, best quality, highly detailed anime eyes, sharp clear pupils, beautiful iris detail, perfect symmetry, extremely detailed, 8k, ultra sharp focus",
-        "negative_prompt": "blurry, low quality, distorted, malformed eyes, asymmetric, watermark",
-        "sampler_name": "DPM++ 2M",
-        "steps": 50,
-        "cfg_scale": 7.0,
-        "denoising_strength": 0.2,
-        "inpaint_full_res": True,
-        "inpaint_full_res_padding": 32,
-        "inpainting_fill": 1,
-        "width": 512,
-        "height": 512,
-    }
-    
-    ENABLE_IMAGE_ENHANCEMENT = os.environ.get('ENABLE_IMAGE_ENHANCEMENT', 'false').lower() == 'true'
+    ENABLE_IMAGE_ENHANCEMENT = True
     
     @classmethod
     def ensure_directories(cls):
@@ -2293,6 +3257,8 @@ class FileOperationsManager:
                 # Fallback: generate images list from filesystem (no cascade metadata)
                 images = []
                 for img_path in extracted_dir.rglob('*'):
+                    if is_internal_edit_artifact_path(img_path):
+                        continue
                     if img_path.is_file() and img_path.suffix.lower() in Config.ALLOWED_IMAGE_EXTENSIONS:
                         images.append({
                             'filename': img_path.name,
@@ -2320,46 +3286,102 @@ class FileOperationsManager:
                 return
             
             # Get current images from filesystem
-            current_images = []
+            current_images_by_base = {}
             for img_path in extracted_dir.rglob('*'):
+                if is_internal_edit_artifact_path(img_path):
+                    continue
                 if img_path.is_file() and img_path.suffix.lower() in Config.ALLOWED_IMAGE_EXTENSIONS:
-                    current_images.append({
+                    file_info = {
                         'filename': img_path.name,
                         'path': str(img_path.relative_to(extracted_dir)),
                         'size': img_path.stat().st_size,
                         'modified': datetime.fromtimestamp(img_path.stat().st_mtime).isoformat()
-                    })
-            
-            # Sort by filename (default order)
-            current_images.sort(key=lambda x: x['filename'])
+                    }
+                    base_filename = canonical_base_filename(img_path.name)
+                    current_images_by_base.setdefault(base_filename, []).append(file_info)
             
             # Get existing cascade metadata or create new
             existing_cascade = post.get('cascade_metadata', {})
-            existing_images = {img['filename']: img for img in existing_cascade.get('images', [])}
+            existing_images = {}
+            for img in existing_cascade.get('images', []):
+                if not isinstance(img, dict) or not img.get('filename'):
+                    continue
+                ensure_image_alternate_metadata(img)
+                existing_images[img.get('base_image_filename') or canonical_base_filename(img['filename'])] = img
             
             # Generate new cascade metadata
             cascade_images = []
-            for i, img in enumerate(current_images):
-                filename = img['filename']
-                
-                # Preserve existing metadata or create new
-                if filename in existing_images:
-                    existing = existing_images[filename]
+            for i, base_filename in enumerate(sorted(current_images_by_base.keys())):
+                group_files = sorted(current_images_by_base[base_filename], key=lambda x: x['filename'])
+                files_by_name = {item['filename']: item for item in group_files}
+                existing = existing_images.get(base_filename)
+
+                if existing:
+                    active_filename = existing.get('active_alternate_filename') or existing.get('filename') or base_filename
+                    if active_filename not in files_by_name:
+                        active_filename = base_filename if base_filename in files_by_name else group_files[0]['filename']
+
+                    existing_alt_meta = {
+                        alt.get('filename'): alt
+                        for alt in existing.get('alternate_versions', []) or []
+                        if isinstance(alt, dict) and alt.get('filename')
+                    }
+                    alternate_versions = []
+                    ordered_filenames = sorted(files_by_name.keys(), key=lambda name: (0 if name == base_filename else 1, name))
+                    for alt_filename in ordered_filenames:
+                        prev = existing_alt_meta.get(alt_filename, {})
+                        alternate_versions.append({
+                            'filename': alt_filename,
+                            'kind': prev.get('kind', 'original' if alt_filename == base_filename else 'enhanced'),
+                            'created_at': prev.get('created_at') or files_by_name[alt_filename]['modified'],
+                            'source_run_id': prev.get('source_run_id'),
+                            'prompt_text': prev.get('prompt_text', ''),
+                            'active': alt_filename == active_filename,
+                        })
+
                     cascade_images.append({
-                        'filename': filename,
+                        'filename': active_filename,
                         'visible': existing.get('visible', True),
                         'deleted': existing.get('deleted', False),
                         'custom_order': existing.get('custom_order', i),
-                        'file_info': img
+                        'file_info': files_by_name[active_filename],
+                        'enhanced': active_filename != base_filename,
+                        'enhancement_date': existing.get('enhancement_date'),
+                        'original_filename': base_filename,
+                        'base_image_filename': base_filename,
+                        'active_alternate_filename': active_filename,
+                        'enhanced_filename': active_filename if active_filename != base_filename else None,
+                        'enhancement_config': existing.get('enhancement_config'),
+                        'alternate_versions': alternate_versions,
                     })
                 else:
-                    # New image - add with default values
+                    active_filename = base_filename if base_filename in files_by_name else group_files[0]['filename']
+                    alternate_versions = []
+                    ordered_filenames = sorted(files_by_name.keys(), key=lambda name: (0 if name == base_filename else 1, name))
+                    for alt_filename in ordered_filenames:
+                        alternate_versions.append({
+                            'filename': alt_filename,
+                            'kind': 'original' if alt_filename == base_filename else 'enhanced',
+                            'created_at': files_by_name[alt_filename]['modified'],
+                            'source_run_id': None,
+                            'prompt_text': '',
+                            'active': alt_filename == active_filename,
+                        })
+
                     cascade_images.append({
-                        'filename': filename,
+                        'filename': active_filename,
                         'visible': True,
                         'deleted': False,
                         'custom_order': i,
-                        'file_info': img
+                        'file_info': files_by_name[active_filename],
+                        'enhanced': active_filename != base_filename,
+                        'enhancement_date': None,
+                        'original_filename': base_filename,
+                        'base_image_filename': base_filename,
+                        'active_alternate_filename': active_filename,
+                        'enhanced_filename': active_filename if active_filename != base_filename else None,
+                        'enhancement_config': {},
+                        'alternate_versions': alternate_versions,
                     })
             
             # Update post's cascade metadata
@@ -2586,7 +3608,7 @@ class FileOperationsManager:
             # Verify at least one image exists in extracted directory
             extracted_dir = checks['extracted_dir']
             image_files = [f for f in extracted_dir.rglob('*') 
-                         if f.is_file() and f.suffix.lower() in Config.ALLOWED_IMAGE_EXTENSIONS]
+                         if not is_internal_edit_artifact_path(f) and f.is_file() and f.suffix.lower() in Config.ALLOWED_IMAGE_EXTENSIONS]
             
             if not image_files:
                 return {'success': False, 'error': 'No image files found in extracted directory'}
@@ -3836,237 +4858,345 @@ def _enhancement_disabled_response():
 @app.route('/api/enhance/status', methods=['GET'])
 def check_enhancement_status():
     """Check if enhancement is available."""
+    token_available = get_zo_access_token() is not None
     if not Config.ENABLE_IMAGE_ENHANCEMENT:
         return jsonify({
             "success": True,
             "data": {
                 "available": False,
-                "sd_webui_running": False,
-                "keep_alive_enabled": False,
                 "message": "Image enhancement is disabled on this Zo deployment.",
+                "provider": "zo-nano-banana",
                 "dependencies": {
                     "requests": REQUESTS_AVAILABLE,
-                    "cv2": CV2_AVAILABLE,
-                    "mediapipe": MEDIAPIPE_AVAILABLE,
-                    "yolo": YOLO_AVAILABLE,
-                    "pil": PIL_AVAILABLE
+                    "pil": PIL_AVAILABLE,
+                    "zo_token": token_available,
                 }
             }
         })
-    
+
     try:
-        is_running = sd_webui_manager.is_running()
-        
-        # Determine appropriate message for user
-        message = ""
-        if not is_running:
-            if Config.KEEP_WEBUI_ALIVE:
-                message = "SD WebUI is starting up. Please wait a moment and try again."
-            else:
-                message = "SD WebUI is not running. Enable KEEP_WEBUI_ALIVE in config or start SD WebUI manually."
-        
         status = {
-            "available": is_running,
-            "sd_webui_running": is_running,
-            "keep_alive_enabled": Config.KEEP_WEBUI_ALIVE,
-            "message": message,
+            "available": REQUESTS_AVAILABLE and PIL_AVAILABLE and token_available,
+            "message": "" if token_available else "Zo image editing is not configured on this host.",
+            "provider": "zo-nano-banana",
             "dependencies": {
                 "requests": REQUESTS_AVAILABLE,
-                "cv2": CV2_AVAILABLE,
-                "mediapipe": MEDIAPIPE_AVAILABLE,
-                "yolo": YOLO_AVAILABLE,
-                "pil": PIL_AVAILABLE
+                "pil": PIL_AVAILABLE,
+                "zo_token": token_available,
             }
         }
-        
         return jsonify({"success": True, "data": status})
-        
     except Exception as e:
         logger.error(f"Error checking enhancement status: {e}")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/enhance/start-sd-webui', methods=['POST'])
 def start_sd_webui():
-    """Start SD WebUI if not running."""
-    if not Config.ENABLE_IMAGE_ENHANCEMENT:
-        return _enhancement_disabled_response()
-    
-    try:
-        result = sd_webui_manager.start()
-        return jsonify(result)
-        
-    except Exception as e:
-        logger.error(f"Error starting SD WebUI: {e}")
-        return jsonify({"error": str(e)}), 500
+    return jsonify({
+        "success": False,
+        "error": "SD WebUI is obsolete in this version. Enhancement now runs through Zo image editing.",
+        "code": "OBSOLETE_ENDPOINT"
+    }), 410
 
 @app.route('/api/enhance/<post_id>/<filename>/detect', methods=['POST'])
 def detect_eyes_in_image(post_id, filename):
-    """Detect eyes in image and return bounding boxes."""
-    if not Config.ENABLE_IMAGE_ENHANCEMENT:
-        return _enhancement_disabled_response()
-    
-    try:
-        # Load image
-        image_path = FileOperationsManager.get_post_extracted_dir(post_id) / filename
-        if not image_path.exists():
-            return jsonify({"error": "Image not found"}), 404
-        
-        if not CV2_AVAILABLE:
-            return jsonify({"error": "OpenCV not available"}), 500
-        
-        # Load image
-        image_np = cv2.imread(str(image_path))
-        if image_np is None:
-            return jsonify({"error": "Failed to load image"}), 500
-        
-        # Detect eyes
-        eye_regions = eye_inpainter.detect_eyes(image_np)
-        
-        if not eye_regions:
-            return jsonify({"success": True, "data": {"eyes_detected": False, "regions": []}})
-        
-        # Convert to JSON-serializable format
-        regions = [{
-            "box": region["box"],
-            "side": region.get("side", "detected"),
-            "confidence": region.get("confidence", 1.0)
-        } for region in eye_regions]
-        
-        return jsonify({
-            "success": True,
-            "data": {
-                "eyes_detected": True,
-                "regions": regions,
-                "count": len(regions)
-            }
-        })
-        
-    except Exception as e:
-        logger.error(f"Error detecting eyes in {post_id}/{filename}: {e}")
-        return jsonify({"error": str(e)}), 500
+    return jsonify({
+        "success": False,
+        "error": "Automatic eye detection is obsolete. This enhancer requires an explicit manual selection.",
+        "code": "OBSOLETE_ENDPOINT"
+    }), 410
 
 @app.route('/api/enhance/<post_id>/<filename>', methods=['POST'])
 def enhance_image(post_id, filename):
-    """Enhance image with eye inpainting."""
+    """Start an asynchronous enhancement job."""
     if not Config.ENABLE_IMAGE_ENHANCEMENT:
         return _enhancement_disabled_response()
-    
+
     try:
-        # Check SD WebUI availability
-        if not sd_webui_manager.is_running():
-            if Config.KEEP_WEBUI_ALIVE:
-                # In persistent mode, SD WebUI should already be running or starting
-                return jsonify({
-                    "error": "SD WebUI is still starting up. Please wait a moment and try again.",
-                    "code": "WEBUI_STARTING"
-                }), 503
-            else:
-                # Not in persistent mode - don't auto-start, inform user
-                return jsonify({
-                    "error": "SD WebUI is not running. Please enable KEEP_WEBUI_ALIVE or start SD WebUI manually.",
-                    "code": "WEBUI_NOT_RUNNING"
-                }), 503
-        
-        # Get enhancement config from request
         config_data = request.get_json() or {}
-        
-        # Build inpainting config
-        inpaint_config = Config.INPAINT_CONFIG.copy()
-        if 'prompt' in config_data:
-            inpaint_config['prompt'] = config_data['prompt']
-        if 'negative_prompt' in config_data:
-            inpaint_config['negative_prompt'] = config_data['negative_prompt']
-        if 'denoising_strength' in config_data:
-            inpaint_config['denoising_strength'] = float(config_data['denoising_strength'])
-        if 'cfg_scale' in config_data:
-            inpaint_config['cfg_scale'] = float(config_data['cfg_scale'])
-        if 'steps' in config_data:
-            inpaint_config['steps'] = int(config_data['steps'])
-        
-        # Load image
-        image_path = FileOperationsManager.get_post_extracted_dir(post_id) / filename
-        if not image_path.exists():
-            return jsonify({"error": "Image not found"}), 404
-        
-        if not CV2_AVAILABLE or not PIL_AVAILABLE:
-            return jsonify({"error": "Required libraries not available"}), 500
-        
-        # Load image
-        image_np = cv2.imread(str(image_path))
-        if image_np is None:
-            return jsonify({"error": "Failed to load image"}), 500
-        
-        # Check for custom mask
-        custom_mask = config_data.get('custom_mask')
-        
-        logger.info(f"Custom mask received: {custom_mask}")
-        
-        if custom_mask:
-            # Use custom rectangular mask (coordinates are normalized 0-1)
-            h, w = image_np.shape[:2]
-            x1 = int(custom_mask['x1'] * w)
-            y1 = int(custom_mask['y1'] * h)
-            x2 = int(custom_mask['x2'] * w)
-            y2 = int(custom_mask['y2'] * h)
-            logger.info(f"Creating custom mask for region: ({x1}, {y1}) to ({x2}, {y2}) in image size ({w}, {h})")
-            mask = eye_inpainter.create_mask_from_rectangle(image_np.shape, x1, y1, x2, y2)
-        else:
-            # Auto-detect eyes
-            logger.info("No custom mask - using auto-detection")
-            eye_regions = eye_inpainter.detect_eyes(image_np)
-            
-            if not eye_regions:
-                return jsonify({"error": "No eyes detected. Try using manual mask."}), 400
-            
-            logger.info(f"Detected {len(eye_regions)} eye regions")
-            mask = eye_inpainter.create_mask(image_np.shape, eye_regions)
-        
-        if mask is None:
-            return jsonify({"error": "Failed to create mask"}), 500
-        
-        # Convert to PIL
-        image_pil = Image.fromarray(cv2.cvtColor(image_np, cv2.COLOR_BGR2RGB))
-        mask_pil = Image.fromarray(mask).convert('RGB')
-        
-        # Inpaint
-        result_pil = eye_inpainter.inpaint_via_api(image_pil, mask_pil, inpaint_config)
-        
-        if result_pil is None:
-            return jsonify({"error": "Inpainting failed. Check SD WebUI connection."}), 500
-        
-        # Save enhanced image with iteration number
-        # Extract base name without previous enhancement iterations
-        stem = image_path.stem
-        suffix = image_path.suffix
-        
-        # Remove any existing _enhanced### suffix to get the base name
-        import re
-        base_stem = re.sub(r'_enhanced\d+$', '', stem)
-        
-        # Find the next iteration number by checking existing files
-        iteration = 1
-        while True:
-            enhanced_filename = f"{base_stem}_enhanced{iteration:03d}{suffix}"
-            enhanced_path = image_path.parent / enhanced_filename
-            if not enhanced_path.exists():
-                break
-            iteration += 1
-        
-        result_pil.save(enhanced_path)
-        
-        logger.info(f"Enhanced image saved: {enhanced_path} (iteration {iteration})")
-        
+        job_id = enhancement_job_manager.start_job(post_id, filename, config_data)
         return jsonify({
             "success": True,
             "data": {
-                "enhanced_filename": enhanced_filename,
-                "original_filename": filename,
-                "config": inpaint_config
+                "job_id": job_id,
+                "status": "queued",
+            }
+        }), 202
+    except Exception as e:
+        logger.error(f"Error starting enhancement for {post_id}/{filename}: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/enhance/jobs/<job_id>', methods=['GET'])
+def get_enhancement_job(job_id):
+    """Return the current status of an enhancement job."""
+    job = enhancement_job_manager.get_job(job_id)
+    if not job:
+        return jsonify({"error": "Enhancement job not found"}), 404
+
+    payload = {
+        "job_id": job["job_id"],
+        "status": job["status"],
+        "created_at": job["created_at"],
+        "updated_at": job["updated_at"],
+    }
+    if job.get("result") is not None:
+        payload["result"] = job["result"]
+    if job.get("error"):
+        payload["error"] = job["error"]
+
+    return jsonify({"success": True, "data": payload})
+
+
+@app.route('/api/enhance/<post_id>/focus-assets', methods=['GET'])
+def list_focus_assets(post_id):
+    """List archived focus assets for a post."""
+    try:
+        _, post_metadata = load_post_metadata_file(post_id)
+        focus_archive = ensure_focus_archive(post_metadata)
+        items = []
+        for item in focus_archive.get('items', []):
+            asset_id = item.get('asset_id')
+            if not asset_id:
+                continue
+            enriched = dict(item)
+            enriched['image_url'] = f"/api/enhance/{post_id}/focus-assets/{asset_id}/image"
+            items.append(enriched)
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "items": items,
+                "count": len(items),
+                "last_updated": focus_archive.get('last_updated'),
             }
         })
-        
+    except FileNotFoundError:
+        return jsonify({"error": "Post metadata file not found"}), 404
     except Exception as e:
-        logger.error(f"Error enhancing {post_id}/{filename}: {e}")
+        logger.error(f"Error listing focus assets for {post_id}: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/enhance/<post_id>/presets', methods=['GET'])
+def list_enhancement_presets(post_id):
+    """List saved enhancement presets for a post."""
+    try:
+        _, post_metadata = load_post_metadata_file(post_id)
+        payload = build_enhancement_preset_payload(post_id, post_metadata)
+        return jsonify({"success": True, "data": payload})
+    except FileNotFoundError:
+        return jsonify({"error": "Post metadata file not found"}), 404
+    except Exception as e:
+        logger.error(f"Error listing enhancement presets for {post_id}: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/enhance/<post_id>/presets', methods=['POST'])
+def save_enhancement_preset(post_id):
+    """Save a named enhancement preset for a post."""
+    try:
+        data_json = request.get_json() or {}
+        name = (data_json.get('name') or '').strip()
+        prompt_text = (data_json.get('prompt_text') or '').strip()
+        reference_asset_ids = data_json.get('reference_asset_ids') or []
+
+        if not name:
+            return jsonify({"error": "Preset name is required"}), 400
+        if not prompt_text:
+            return jsonify({"error": "Preset prompt is required"}), 400
+
+        metadata_path, post_metadata = load_post_metadata_file(post_id)
+        if reference_asset_ids:
+            resolve_focus_reference_items(post_id, post_metadata, reference_asset_ids)
+
+        presets = ensure_enhancement_presets(post_metadata)
+        items = [item for item in presets.get('items', []) if isinstance(item, dict)]
+        preset_id = uuid.uuid4().hex[:12]
+        now = datetime.now().isoformat()
+        item = {
+            'preset_id': preset_id,
+            'name': name,
+            'prompt_text': prompt_text,
+            'reference_asset_ids': list(dict.fromkeys(reference_asset_ids)),
+            'created_at': now,
+            'last_used_at': None,
+        }
+        items.insert(0, item)
+        presets['items'] = items
+        presets['last_updated'] = now
+
+        safe_save_json(post_metadata, metadata_path)
+        payload = build_enhancement_preset_payload(post_id, post_metadata)
+
+        logger.info(f"Saved enhancement preset for {post_id}: {name}")
+        return jsonify({
+            "success": True,
+            "message": "Enhancement preset saved",
+            "data": {
+                "preset": next((entry for entry in payload['items'] if entry['preset_id'] == preset_id), None),
+                "presets": payload,
+            }
+        })
+    except FileNotFoundError:
+        return jsonify({"error": "Post metadata file not found"}), 404
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        logger.error(f"Error saving enhancement preset for {post_id}: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/enhance/<post_id>/focus-assets/<asset_id>/image', methods=['GET'])
+def serve_focus_asset(post_id, asset_id):
+    """Serve an archived focus asset image."""
+    try:
+        _, post_metadata = load_post_metadata_file(post_id)
+        focus_archive = ensure_focus_archive(post_metadata)
+        item = next((entry for entry in focus_archive.get('items', []) if entry.get('asset_id') == asset_id), None)
+        if not item:
+            abort(404)
+
+        asset_path = get_focus_archive_dir(post_id) / item.get('filename', '')
+        if not asset_path.exists():
+            abort(404)
+
+        return send_file(asset_path)
+    except FileNotFoundError:
+        abort(404)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error serving focus asset {asset_id} for {post_id}: {e}")
+        abort(500)
+
+
+@app.route('/api/enhance/<post_id>/<filename>/save-crop', methods=['POST'])
+def save_focus_crop(post_id, filename):
+    """Save the currently selected crop into the post-scoped focus archive."""
+    try:
+        data_json = request.get_json() or {}
+        bbox = data_json.get('custom_mask')
+        prompt_text = data_json.get('prompt', '')
+        reference_asset_ids = data_json.get('reference_asset_ids') or []
+
+        if not bbox:
+            return jsonify({"error": "No selection provided"}), 400
+
+        source_image_path = FileOperationsManager.get_post_extracted_dir(post_id) / filename
+        if not source_image_path.exists():
+            return jsonify({"error": "Image not found"}), 404
+
+        metadata_path, post_metadata = load_post_metadata_file(post_id)
+        item = append_focus_archive_item(
+            post_id=post_id,
+            post_metadata=post_metadata,
+            source_image_path=source_image_path,
+            source_image_filename=filename,
+            asset_type='raw_crop',
+            bbox=bbox,
+            prompt_text=prompt_text,
+            reference_asset_ids=reference_asset_ids,
+        )
+        safe_save_json(post_metadata, metadata_path)
+
+        logger.info(f"Saved raw focus crop for {post_id}/{filename} as {item['filename']}")
+        return jsonify({
+            "success": True,
+            "message": "Focus crop saved",
+            "data": {
+                "item": {
+                    **item,
+                    "image_url": f"/api/enhance/{post_id}/focus-assets/{item['asset_id']}/image",
+                }
+            }
+        })
+    except FileNotFoundError:
+        return jsonify({"error": "Post metadata file not found"}), 404
+    except Exception as e:
+        logger.error(f"Error saving focus crop for {post_id}/{filename}: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/enhance/<post_id>/<filename>/alternates', methods=['GET'])
+def list_image_alternates(post_id, filename):
+    """List alternate versions for the gallery image represented by filename."""
+    try:
+        _, post_metadata = load_post_metadata_file(post_id)
+        cascade_meta = post_metadata.get('cascade_metadata', {})
+        images = cascade_meta.get('images', [])
+        img_entry = find_image_entry_by_variant(images, filename)
+        if not img_entry:
+            return jsonify({"error": "Image entry not found"}), 404
+
+        payload = build_alternate_payload(post_id, img_entry)
+        return jsonify({"success": True, "data": payload})
+    except FileNotFoundError:
+        return jsonify({"error": "Post metadata file not found"}), 404
+    except Exception as e:
+        logger.error(f"Error listing alternates for {post_id}/{filename}: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/enhance/<post_id>/<filename>/alternates/activate', methods=['POST'])
+def activate_image_alternate(post_id, filename):
+    """Switch the gallery-default displayed version to a selected alternate."""
+    try:
+        data_json = request.get_json() or {}
+        target_filename = data_json.get('target_filename')
+        if not target_filename:
+            return jsonify({"error": "No target filename provided"}), 400
+
+        target_path = FileOperationsManager.get_post_extracted_dir(post_id) / target_filename
+        if not target_path.exists():
+            return jsonify({"error": "Target alternate image not found"}), 404
+
+        metadata_path, post_metadata = load_post_metadata_file(post_id)
+        cascade_meta = post_metadata.get('cascade_metadata', {})
+        images = cascade_meta.get('images', [])
+        img_entry = find_image_entry_by_variant(images, filename)
+        if not img_entry:
+            return jsonify({"error": "Image entry not found"}), 404
+
+        ensure_image_alternate_metadata(img_entry)
+        valid_filenames = {alt.get('filename') for alt in img_entry.get('alternate_versions', [])}
+        if target_filename not in valid_filenames:
+            return jsonify({"error": "Target filename is not a known alternate for this image"}), 400
+
+        base_filename = img_entry['base_image_filename']
+        add_or_update_alternate_version(
+            img_entry,
+            target_filename,
+            kind='original' if target_filename == base_filename else 'enhanced',
+            source_run_id=next((alt.get('source_run_id') for alt in img_entry.get('alternate_versions', []) if alt.get('filename') == target_filename), None),
+            prompt_text=next((alt.get('prompt_text', '') for alt in img_entry.get('alternate_versions', []) if alt.get('filename') == target_filename), ''),
+            created_at=next((alt.get('created_at') for alt in img_entry.get('alternate_versions', []) if alt.get('filename') == target_filename), datetime.now().isoformat()),
+        )
+        img_entry['enhanced'] = target_filename != base_filename
+        img_entry['enhancement_date'] = datetime.now().isoformat()
+        img_entry['enhanced_filename'] = target_filename if target_filename != base_filename else None
+        img_entry['file_info'] = {
+            'filename': target_filename,
+            'path': target_filename,
+            'size': target_path.stat().st_size,
+            'modified': datetime.fromtimestamp(target_path.stat().st_mtime).isoformat(),
+        }
+
+        cascade_meta['last_updated'] = datetime.now().isoformat()
+        post_metadata['cascade_metadata'] = cascade_meta
+        safe_save_json(post_metadata, metadata_path)
+        regenerate_post_html_from_metadata(post_id, post_metadata)
+
+        payload = build_alternate_payload(post_id, img_entry)
+        return jsonify({
+            "success": True,
+            "message": "Active alternate updated",
+            "data": payload,
+        })
+    except FileNotFoundError:
+        return jsonify({"error": "Post metadata file not found"}), 404
+    except Exception as e:
+        logger.error(f"Error activating alternate for {post_id}/{filename}: {e}")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/enhance/<post_id>/<filename>/save', methods=['POST'])
@@ -4079,6 +5209,10 @@ def save_enhanced_image(post_id, filename):
         data_json = request.get_json() or {}
         enhanced_filename = data_json.get('enhanced_filename')
         config = data_json.get('config', {})
+        bbox = data_json.get('custom_mask')
+        prompt_text = data_json.get('prompt', '')
+        reference_asset_ids = data_json.get('reference_asset_ids') or []
+        source_run_id = data_json.get('source_run_id')
         
         if not enhanced_filename:
             return jsonify({"error": "No enhanced filename provided"}), 400
@@ -4089,38 +5223,47 @@ def save_enhanced_image(post_id, filename):
             return jsonify({"error": "Enhanced image not found"}), 404
         
         # Load the per-post metadata file (NOT the main posts_metadata.json)
-        metadata_path = Config.POST_PAGES_DIR / f"{post_id}_metadata.json"
-        if not metadata_path.exists():
-            return jsonify({"error": "Post metadata file not found"}), 404
-        
-        with open(metadata_path, 'r', encoding='utf-8') as f:
-            post_metadata = json.load(f)
+        metadata_path, post_metadata = load_post_metadata_file(post_id)
         
         # Update the cascade_metadata images
         cascade_meta = post_metadata.get('cascade_metadata', {})
         images = cascade_meta.get('images', [])
         
-        # Find the original image entry
-        found = False
-        for img_entry in images:
-            if img_entry.get('filename') == filename:
-                # Update filename to point to enhanced version
-                img_entry['filename'] = enhanced_filename
-                img_entry['enhanced'] = True
-                img_entry['enhancement_date'] = datetime.now().isoformat()
-                img_entry['original_filename'] = filename
-                img_entry['enhanced_filename'] = enhanced_filename
-                img_entry['enhancement_config'] = config
-                found = True
-                break
-        
-        if not found:
-            # Image not found in metadata - add enhanced image as new entry
-            file_info = {
+        img_entry = find_image_entry_by_variant(images, filename)
+
+        if img_entry:
+            ensure_image_alternate_metadata(img_entry)
+            base_filename = img_entry.get('base_image_filename') or canonical_base_filename(filename)
+            add_or_update_alternate_version(
+                img_entry,
+                enhanced_filename,
+                kind='enhanced',
+                source_run_id=source_run_id,
+                prompt_text=prompt_text or config.get('prompt', ''),
+                created_at=datetime.now().isoformat(),
+            )
+            img_entry['enhanced'] = True
+            img_entry['enhancement_date'] = datetime.now().isoformat()
+            img_entry['original_filename'] = base_filename
+            img_entry['base_image_filename'] = base_filename
+            img_entry['enhanced_filename'] = enhanced_filename
+            img_entry['enhancement_config'] = config
+            img_entry['file_info'] = {
+                'filename': enhanced_filename,
+                'path': enhanced_filename,
                 'size': enhanced_path.stat().st_size,
                 'modified': datetime.fromtimestamp(enhanced_path.stat().st_mtime).isoformat()
             }
-            images.append({
+        else:
+            # Image not found in metadata - add enhanced image as new entry
+            base_filename = canonical_base_filename(filename)
+            file_info = {
+                'filename': enhanced_filename,
+                'path': enhanced_filename,
+                'size': enhanced_path.stat().st_size,
+                'modified': datetime.fromtimestamp(enhanced_path.stat().st_mtime).isoformat()
+            }
+            img_entry = {
                 'filename': enhanced_filename,
                 'visible': True,
                 'deleted': False,
@@ -4128,56 +5271,75 @@ def save_enhanced_image(post_id, filename):
                 'file_info': file_info,
                 'enhanced': True,
                 'enhancement_date': datetime.now().isoformat(),
-                'original_filename': filename,
+                'original_filename': base_filename,
+                'base_image_filename': base_filename,
+                'active_alternate_filename': enhanced_filename,
                 'enhanced_filename': enhanced_filename,
-                'enhancement_config': config
-            })
+                'enhancement_config': config,
+                'alternate_versions': [
+                    {
+                        'filename': base_filename,
+                        'kind': 'original',
+                        'created_at': datetime.now().isoformat(),
+                        'source_run_id': None,
+                        'prompt_text': '',
+                        'active': False,
+                    },
+                    {
+                        'filename': enhanced_filename,
+                        'kind': 'enhanced',
+                        'created_at': datetime.now().isoformat(),
+                        'source_run_id': source_run_id,
+                        'prompt_text': prompt_text or config.get('prompt', ''),
+                        'active': True,
+                    }
+                ]
+            }
+            images.append(img_entry)
         
         # Update cascade metadata
         cascade_meta['last_updated'] = datetime.now().isoformat()
         cascade_meta['total_images'] = len(images)
+        cascade_meta['visible_images'] = len([img for img in images if img.get('visible', True) and not img.get('deleted', False)])
         post_metadata['cascade_metadata'] = cascade_meta
+
+        archived_focus_item = None
+        if bbox:
+            archived_focus_item = append_focus_archive_item(
+                post_id=post_id,
+                post_metadata=post_metadata,
+                source_image_path=enhanced_path,
+                source_image_filename=filename,
+                source_enhanced_filename=enhanced_filename,
+                asset_type='edited_focus',
+                bbox=bbox,
+                prompt_text=prompt_text or config.get('prompt', ''),
+                reference_asset_ids=reference_asset_ids,
+                source_run_id=source_run_id,
+            )
         
         # Save the per-post metadata file back
-        with open(metadata_path, 'w', encoding='utf-8') as f:
-            json.dump(post_metadata, f, indent=2, ensure_ascii=False)
+        safe_save_json(post_metadata, metadata_path)
         
         logger.info(f"Updated per-post metadata for {post_id}: {filename} -> {enhanced_filename}")
         
         # Regenerate ONLY the HTML files (NOT the metadata file) so changes persist on refresh
         try:
-            # Reload the updated per-post metadata we just saved
-            with open(metadata_path, 'r', encoding='utf-8') as f:
-                updated_post_metadata = json.load(f)
-            
-            # Create a post dict with the updated cascade_metadata for HTML generation
-            post_for_html = {
-                'post_id': post_id,
-                'revised_post_name': updated_post_metadata.get('post_name', ''),
-                'post_name': updated_post_metadata.get('post_name', ''),
-                'post_date': updated_post_metadata.get('post_date', ''),
-                'cascade_metadata': updated_post_metadata.get('cascade_metadata', {})
-            }
-            
-            # Regenerate ONLY the HTML files (single and cascade views)
-            single_html = FileOperationsManager._create_single_view_html(post_id, post_for_html)
-            single_path = Config.POST_PAGES_DIR / f"{post_id}.html"
-            with open(single_path, 'w', encoding='utf-8') as f:
-                f.write(single_html)
-            
-            cascade_html = FileOperationsManager._create_cascade_view_html(post_id, post_for_html)
-            cascade_path = Config.POST_PAGES_DIR / f"{post_id}_cascade.html"
-            with open(cascade_path, 'w', encoding='utf-8') as f:
-                f.write(cascade_html)
-            
+            regenerate_post_html_from_metadata(post_id, post_metadata)
             logger.info(f"Regenerated HTML files for post {post_id} after enhancement save")
         except Exception as html_error:
             logger.error(f"Failed to regenerate HTML after enhancement: {html_error}")
         
+        alternates_payload = build_alternate_payload(post_id, img_entry)
         return jsonify({
             "success": True, 
             "message": "Enhanced image saved",
-            "new_filename": enhanced_filename
+            "new_filename": enhanced_filename,
+            "alternates": alternates_payload,
+            "focus_archive_item": {
+                **archived_focus_item,
+                "image_url": f"/api/enhance/{post_id}/focus-assets/{archived_focus_item['asset_id']}/image",
+            } if archived_focus_item else None
         })
         
     except Exception as e:
@@ -4517,25 +5679,6 @@ def main():
     logger.info(f"Metadata JSON: {Config.METADATA_JSON}")
     logger.info(f"Metadata Excel: {Config.METADATA_EXCEL}")
     logger.info(f"Server: http://{Config.HOST}:{Config.PORT}")
-    
-    # Auto-launch SD WebUI if KEEP_WEBUI_ALIVE is enabled and it's not running
-    # Only do this in the main process, not Flask's reloader child process
-    if Config.KEEP_WEBUI_ALIVE and os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
-        logger.info("KEEP_WEBUI_ALIVE is enabled - checking SD WebUI status...")
-        if not sd_webui_manager.is_running():
-            logger.info("SD WebUI is not running - starting it now...")
-            # Start in background thread to not block app startup
-            def start_webui_background():
-                result = sd_webui_manager.start()
-                if result['success']:
-                    logger.info("SD WebUI started successfully in background")
-                else:
-                    logger.error(f"Failed to start SD WebUI: {result.get('error')}")
-            
-            webui_thread = threading.Thread(target=start_webui_background, daemon=True)
-            webui_thread.start()
-        else:
-            logger.info("SD WebUI is already running")
     
     if not PANDAS_AVAILABLE:
         logger.warning("pandas not available - Excel synchronization disabled")

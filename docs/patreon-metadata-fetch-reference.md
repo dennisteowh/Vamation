@@ -2,6 +2,12 @@
 
 Purpose: a known-good manual reference for fetching fresh Patreon metadata with the current cookie set, without using the pipeline. This is meant to be compared later against the metadata update pipeline when debugging why the pipeline fails.
 
+Related browser-auth reference:
+
+- `/home/workspace/Projects/Vamation/docs/patreon-browser-auth-workflow.md`
+
+Important: this file records an earlier successful direct-cookie replay path. A later Zo test on 2026-06-09 proved that browser-context authenticated fetch works, but plain `requests.Session()` replay with freshly extracted browser cookies still returned `403`. Use the browser-auth workflow note above as the current source of truth for refresh operations.
+
 ## What was verified
 
 Using the cookies in `/home/workspace/Projects/Vamation/cookies.txt`, direct Patreon API requests succeeded from this server.

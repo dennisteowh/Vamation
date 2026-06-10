@@ -312,10 +312,6 @@
             top: 300px;
         }
 
-        .enhance-settings-widget {
-            top: 370px;
-        }
-
         .enhance-btn {
             width: 100%;
             padding: 0.5rem 0.75rem;
@@ -331,36 +327,6 @@
             justify-content: center;
             gap: 0.5rem;
             font-size: 0.8rem;
-        }
-
-        .enhance-settings-btn {
-            width: 100%;
-            padding: 0.5rem 0.75rem;
-            background: rgba(155, 89, 182, 0.2);
-            border: 1px solid rgba(155, 89, 182, 0.5);
-            color: #9b59b6;
-            font-weight: 600;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
-            font-size: 0.8rem;
-        }
-
-        .enhance-settings-btn:hover {
-            background: rgba(155, 89, 182, 0.3);
-            border-color: #9b59b6;
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(155, 89, 182, 0.3);
-        }
-
-        .enhance-settings-btn.active {
-            background: rgba(155, 89, 182, 0.4);
-            border-color: #9b59b6;
-            color: #ffffff;
         }
 
         .enhance-btn:hover:not(:disabled) {
@@ -393,6 +359,506 @@
 
         @keyframes spin {
             to { transform: rotate(360deg); }
+        }
+
+        .enhance-selection-widget {
+            top: 370px;
+            display: none;
+            min-width: 240px;
+        }
+
+        .enhance-selection-widget.active {
+            display: block;
+        }
+
+        .alternate-versions-widget {
+            top: 610px;
+            min-width: 240px;
+        }
+
+        .alternate-versions-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.6rem;
+            margin-bottom: 0.45rem;
+        }
+
+        .alternate-versions-title {
+            color: #ffffff;
+            font-size: 0.8rem;
+            font-weight: 700;
+        }
+
+        .alternate-versions-count {
+            color: #bfa4cf;
+            font-size: 0.72rem;
+            font-weight: 600;
+        }
+
+        .alternate-versions-list {
+            display: grid;
+            gap: 0.45rem;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+
+        .alternate-version-btn {
+            width: 100%;
+            padding: 0.55rem 0.65rem;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            background: rgba(255, 255, 255, 0.04);
+            color: #f1f1f1;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .alternate-version-btn:hover:not(:disabled),
+        .alternate-version-btn.active {
+            border-color: rgba(155, 89, 182, 0.7);
+            background: rgba(155, 89, 182, 0.18);
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
+        }
+
+        .alternate-version-btn:disabled {
+            opacity: 0.55;
+            cursor: wait;
+        }
+
+        .alternate-version-label {
+            display: block;
+            font-size: 0.76rem;
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+        .alternate-version-meta {
+            display: block;
+            margin-top: 0.2rem;
+            font-size: 0.68rem;
+            color: #b9b9b9;
+            line-height: 1.35;
+        }
+
+        .alternate-versions-empty {
+            color: #9d9d9d;
+            font-size: 0.74rem;
+            line-height: 1.4;
+        }
+
+        .enhance-selection-title {
+            color: #ffffff;
+            font-size: 0.8rem;
+            font-weight: 700;
+            margin-bottom: 0.35rem;
+        }
+
+        .enhance-selection-hint {
+            color: #b8b8b8;
+            font-size: 0.75rem;
+            line-height: 1.4;
+            margin-bottom: 0.75rem;
+        }
+
+        .enhance-selection-actions {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 0.5rem;
+        }
+
+        .selection-action-btn {
+            width: 100%;
+            padding: 0.55rem 0.75rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.45rem;
+            font-size: 0.78rem;
+            font-weight: 700;
+        }
+
+        .selection-action-btn.confirm {
+            background: linear-gradient(135deg, #9b59b6, #8e44ad);
+            border: 1px solid #9b59b6;
+            color: #ffffff;
+        }
+
+        .selection-action-btn.secondary {
+            background: rgba(155, 89, 182, 0.16);
+            border: 1px solid rgba(155, 89, 182, 0.45);
+            color: #dcb7eb;
+        }
+
+        .selection-action-btn.cancel {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: #e6e6e6;
+        }
+
+        .selection-action-btn:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .selection-action-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .enhance-modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.72);
+            backdrop-filter: blur(10px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            padding: 1.5rem;
+        }
+
+        .enhance-modal-backdrop.active {
+            display: flex;
+        }
+
+        .enhance-modal {
+            width: min(640px, 100%);
+            background: rgba(15, 15, 15, 0.98);
+            border: 1px solid rgba(155, 89, 182, 0.35);
+            border-radius: 18px;
+            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.65);
+            padding: 1.5rem;
+        }
+
+        .enhance-modal-header {
+            margin-bottom: 1rem;
+        }
+
+        .enhance-modal-title {
+            margin: 0;
+            color: #ffffff;
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+
+        .enhance-modal-subtitle {
+            margin: 0.45rem 0 0;
+            color: #b8b8b8;
+            font-size: 0.86rem;
+            line-height: 1.5;
+        }
+
+        .enhance-preset-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.6rem;
+            margin-bottom: 1rem;
+        }
+
+        .enhance-preset-btn {
+            padding: 0.55rem 0.85rem;
+            border-radius: 999px;
+            border: 1px solid rgba(155, 89, 182, 0.4);
+            background: rgba(155, 89, 182, 0.12);
+            color: #f0dcfa;
+            font-size: 0.8rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .enhance-preset-btn:hover,
+        .enhance-preset-btn.active {
+            background: linear-gradient(135deg, #9b59b6, #8e44ad);
+            border-color: #9b59b6;
+            color: #ffffff;
+            box-shadow: 0 6px 20px rgba(155, 89, 182, 0.28);
+        }
+
+        .saved-preset-section {
+            margin-bottom: 1rem;
+        }
+
+        .saved-preset-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            margin-bottom: 0.55rem;
+        }
+
+        .saved-preset-title {
+            color: #f3e6fb;
+            font-size: 0.82rem;
+            font-weight: 700;
+        }
+
+        .saved-preset-count {
+            color: #a98bb8;
+            font-size: 0.74rem;
+            font-weight: 600;
+        }
+
+        .saved-preset-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.6rem;
+        }
+
+        .saved-preset-btn {
+            padding: 0.65rem 0.85rem;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.05);
+            color: #f2f2f2;
+            font-size: 0.78rem;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .saved-preset-btn:hover,
+        .saved-preset-btn.active {
+            border-color: rgba(155, 89, 182, 0.75);
+            background: rgba(155, 89, 182, 0.16);
+            box-shadow: 0 8px 22px rgba(0, 0, 0, 0.22);
+        }
+
+        .saved-preset-name,
+        .saved-preset-meta {
+            display: block;
+            line-height: 1.3;
+        }
+
+        .saved-preset-name {
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+        .saved-preset-meta {
+            margin-top: 0.16rem;
+            font-size: 0.68rem;
+            color: #bababa;
+        }
+
+        .saved-preset-empty {
+            padding: 0.75rem 0.9rem;
+            border-radius: 12px;
+            border: 1px dashed rgba(255, 255, 255, 0.12);
+            background: rgba(255, 255, 255, 0.03);
+            color: #adadad;
+            font-size: 0.76rem;
+            line-height: 1.45;
+        }
+
+        .preset-save-row {
+            display: flex;
+            gap: 0.65rem;
+            margin-top: 0.85rem;
+            align-items: center;
+        }
+
+        .preset-save-input {
+            flex: 1;
+            min-width: 0;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            background: rgba(255, 255, 255, 0.04);
+            color: #ffffff;
+            font: inherit;
+            padding: 0.72rem 0.85rem;
+            outline: none;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .preset-save-input:focus {
+            border-color: rgba(155, 89, 182, 0.75);
+            box-shadow: 0 0 0 3px rgba(155, 89, 182, 0.18);
+        }
+
+        .preset-save-btn {
+            border: none;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #9b59b6, #8e44ad);
+            color: #ffffff;
+            font-size: 0.78rem;
+            font-weight: 700;
+            padding: 0.74rem 0.95rem;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+
+        .preset-save-btn:hover:not(:disabled) {
+            transform: translateY(-1px);
+        }
+
+        .preset-save-btn:disabled {
+            opacity: 0.65;
+            cursor: wait;
+        }
+
+        .enhance-modal-label {
+            display: block;
+            color: #e8e8e8;
+            font-size: 0.82rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .enhance-modal-textarea {
+            width: 100%;
+            min-height: 170px;
+            resize: vertical;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            background: rgba(255, 255, 255, 0.04);
+            color: #ffffff;
+            font: inherit;
+            line-height: 1.5;
+            padding: 0.9rem 1rem;
+            box-sizing: border-box;
+            outline: none;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .enhance-modal-textarea:focus {
+            border-color: rgba(155, 89, 182, 0.75);
+            box-shadow: 0 0 0 3px rgba(155, 89, 182, 0.18);
+        }
+
+        .enhance-modal-note {
+            margin-top: 0.55rem;
+            color: #9d9d9d;
+            font-size: 0.76rem;
+            line-height: 1.45;
+        }
+
+        .focus-archive-section {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .focus-archive-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            margin-bottom: 0.6rem;
+        }
+
+        .focus-archive-title {
+            color: #f3e6fb;
+            font-size: 0.82rem;
+            font-weight: 700;
+        }
+
+        .focus-archive-count {
+            color: #a98bb8;
+            font-size: 0.74rem;
+            font-weight: 600;
+        }
+
+        .focus-archive-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+            gap: 0.7rem;
+        }
+
+        .focus-archive-card {
+            padding: 0.4rem;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.04);
+            color: #f2f2f2;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.2s ease;
+        }
+
+        .focus-archive-card:hover,
+        .focus-archive-card.active {
+            border-color: rgba(155, 89, 182, 0.75);
+            background: rgba(155, 89, 182, 0.15);
+            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+        }
+
+        .focus-archive-card img {
+            width: 100%;
+            aspect-ratio: 1;
+            object-fit: cover;
+            display: block;
+            border-radius: 8px;
+            margin-bottom: 0.45rem;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .focus-archive-card-type {
+            display: block;
+            color: #ffffff;
+            font-size: 0.72rem;
+            font-weight: 700;
+            line-height: 1.25;
+        }
+
+        .focus-archive-card-meta {
+            display: block;
+            margin-top: 0.18rem;
+            color: #b6b6b6;
+            font-size: 0.68rem;
+            line-height: 1.35;
+        }
+
+        .focus-archive-empty {
+            padding: 0.8rem 0.9rem;
+            border-radius: 12px;
+            border: 1px dashed rgba(255, 255, 255, 0.12);
+            background: rgba(255, 255, 255, 0.03);
+            color: #9d9d9d;
+            font-size: 0.75rem;
+            line-height: 1.45;
+        }
+
+        .enhance-modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.75rem;
+            margin-top: 1.2rem;
+        }
+
+        .enhance-modal-btn {
+            padding: 0.7rem 1rem;
+            border-radius: 10px;
+            border: 1px solid transparent;
+            font-size: 0.84rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .enhance-modal-btn.primary {
+            background: linear-gradient(135deg, #9b59b6, #8e44ad);
+            color: #ffffff;
+            border-color: #9b59b6;
+        }
+
+        .enhance-modal-btn.secondary {
+            background: rgba(255, 255, 255, 0.05);
+            color: #f0f0f0;
+            border-color: rgba(255, 255, 255, 0.12);
+        }
+
+        .enhance-modal-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
         }
 
         .playlist-selector-btn-single {
@@ -489,205 +955,6 @@
             opacity: 0.5;
             cursor: not-allowed;
             transform: none;
-        }
-
-        /* Enhancement Settings Modal */
-        .enhance-settings-modal-backdrop {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            backdrop-filter: blur(10px);
-            z-index: 999;
-            display: none;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .enhance-settings-modal-backdrop.show {
-            display: flex;
-        }
-
-        .enhance-settings-modal {
-            width: 500px;
-            max-width: 90vw;
-            max-height: 80vh;
-            background: rgba(15, 15, 15, 0.98);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(155, 89, 182, 0.4);
-            border-radius: 16px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8);
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .enhance-settings-header {
-            padding: 1.25rem 1.5rem;
-            border-bottom: 1px solid rgba(155, 89, 182, 0.3);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            flex-shrink: 0;
-        }
-
-        .enhance-settings-header h3 {
-            margin: 0;
-            font-size: 1rem;
-            font-weight: 600;
-            color: #9b59b6;
-        }
-
-        .enhance-settings-close {
-            background: none;
-            border: none;
-            color: #9b59b6;
-            font-size: 1.5rem;
-            cursor: pointer;
-            padding: 0;
-            width: 32px;
-            height: 32px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 6px;
-            transition: all 0.2s ease;
-        }
-
-        .enhance-settings-close:hover {
-            background: rgba(155, 89, 182, 0.2);
-            color: #d4af37;
-        }
-
-        .enhance-settings-body {
-            padding: 1.5rem;
-            overflow-y: auto;
-            flex: 1;
-        }
-
-        .enhance-settings-body::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        .enhance-settings-body::-webkit-scrollbar-track {
-            background: rgba(255, 255, 255, 0.05);
-        }
-
-        .enhance-settings-body::-webkit-scrollbar-thumb {
-            background: rgba(155, 89, 182, 0.6);
-            border-radius: 4px;
-        }
-
-        .enhance-settings-body::-webkit-scrollbar-thumb:hover {
-            background: rgba(155, 89, 182, 0.8);
-        }
-
-        .enhance-setting-group {
-            margin-bottom: 1.5rem;
-        }
-
-        .enhance-setting-group:last-child {
-            margin-bottom: 0;
-        }
-
-        .enhance-setting-label {
-            display: block;
-            font-size: 0.85rem;
-            font-weight: 600;
-            color: #b8b8b8;
-            margin-bottom: 0.5rem;
-        }
-
-        .enhance-slider {
-            width: 100%;
-            height: 6px;
-            background: rgba(155, 89, 182, 0.2);
-            border-radius: 3px;
-            outline: none;
-            cursor: pointer;
-            -webkit-appearance: none;
-            appearance: none;
-        }
-
-        .enhance-slider::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 18px;
-            height: 18px;
-            background: linear-gradient(135deg, #9b59b6, #8e44ad);
-            border-radius: 50%;
-            cursor: pointer;
-            box-shadow: 0 2px 8px rgba(155, 89, 182, 0.4);
-            transition: all 0.2s ease;
-        }
-
-        .enhance-slider::-webkit-slider-thumb:hover {
-            transform: scale(1.2);
-            box-shadow: 0 4px 12px rgba(155, 89, 182, 0.6);
-        }
-
-        .enhance-slider::-moz-range-thumb {
-            width: 18px;
-            height: 18px;
-            background: linear-gradient(135deg, #9b59b6, #8e44ad);
-            border-radius: 50%;
-            border: none;
-            cursor: pointer;
-            box-shadow: 0 2px 8px rgba(155, 89, 182, 0.4);
-            transition: all 0.2s ease;
-        }
-
-        .enhance-slider::-moz-range-thumb:hover {
-            transform: scale(1.2);
-            box-shadow: 0 4px 12px rgba(155, 89, 182, 0.6);
-        }
-
-        .enhance-slider-value {
-            display: inline-block;
-            margin-left: 0.5rem;
-            font-size: 0.75rem;
-            color: #9b59b6;
-            font-weight: 600;
-        }
-
-        .enhance-input {
-            width: 100%;
-            padding: 0.4rem 0.6rem;
-            background: rgba(155, 89, 182, 0.1);
-            border: 1px solid rgba(155, 89, 182, 0.3);
-            color: #ffffff;
-            border-radius: 6px;
-            font-size: 0.75rem;
-            font-family: 'Inter', sans-serif;
-            resize: vertical;
-            min-height: 60px;
-        }
-
-        .enhance-input:focus {
-            outline: none;
-            border-color: #9b59b6;
-            background: rgba(155, 89, 182, 0.15);
-        }
-
-        .enhance-checkbox-container {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .enhance-checkbox {
-            width: 18px;
-            height: 18px;
-            cursor: pointer;
-            accent-color: #9b59b6;
-        }
-
-        .enhance-checkbox-label {
-            font-size: 0.75rem;
-            color: #ffffff;
-            cursor: pointer;
         }
 
         /* Comparison View - Toggle Mode */
@@ -998,63 +1265,48 @@
             </div>
         </div>
 
-        <!-- Enhance Eyes Widget -->
+        <!-- Enhance Image Widget -->
         <div class="playlist-widget enhance-widget">
             <button class="enhance-btn" id="enhanceBtn">
                 <i class="fas fa-magic"></i>
-                <span>Enhance Eyes</span>
+                <span>Enhance Image</span>
             </button>
         </div>
 
-        <!-- Enhance Settings Widget -->
-        <div class="playlist-widget enhance-settings-widget">
-            <button class="enhance-settings-btn" id="enhanceSettingsBtn">
-                <i class="fas fa-sliders-h"></i>
-                <span>Settings</span>
-            </button>
-        </div>
-
-        <!-- Enhancement Settings Modal -->
-        <div class="enhance-settings-modal-backdrop" id="enhanceSettingsBackdrop">
-            <div class="enhance-settings-modal" id="enhanceSettingsModal">
-                <div class="enhance-settings-header">
-                    <h3><i class="fas fa-sliders-h"></i> Enhancement Settings</h3>
-                    <button class="enhance-settings-close" id="enhanceSettingsClose">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-                <div class="enhance-settings-body">
-                    <div class="enhance-setting-group">
-                        <label class="enhance-setting-label">
-                            Denoising Strength
-                            <span class="enhance-slider-value" id="denoisingValue">0.2</span>
-                        </label>
-                        <input type="range" class="enhance-slider" id="denoisingSlider" 
-                               min="0.1" max="1.0" step="0.05" value="0.2">
-                    </div>
-                    
-                    <div class="enhance-setting-group">
-                        <label class="enhance-setting-label">Positive Prompt</label>
-                        <textarea class="enhance-input" id="positivePrompt" 
-                                  placeholder="masterpiece, best quality, highly detailed anime eyes...">masterpiece, best quality, highly detailed anime eyes, sharp clear pupils, beautiful iris detail, perfect symmetry, extremely detailed, 8k, ultra sharp focus</textarea>
-                    </div>
-                    
-                    <div class="enhance-setting-group">
-                        <label class="enhance-setting-label">Negative Prompt</label>
-                        <textarea class="enhance-input" id="negativePrompt" 
-                                  placeholder="blurry, low quality...">blurry, low quality, distorted, malformed eyes, asymmetric, watermark</textarea>
-                    </div>
-                    
-                    <div class="enhance-setting-group">
-                        <div class="enhance-checkbox-container">
-                            <input type="checkbox" class="enhance-checkbox" id="customMaskCheckbox">
-                            <label class="enhance-checkbox-label" for="customMaskCheckbox">
-                                Use Custom Mask (draw rectangle)
-                            </label>
-                        </div>
-                    </div>
-                </div>
+        <div class="playlist-widget enhance-selection-widget" id="enhanceSelectionWidget">
+            <div class="enhance-selection-title">Selection Mode</div>
+            <div class="enhance-selection-hint" id="enhanceSelectionHint">
+                Draw a box around the area you want to enhance.
             </div>
+            <div class="enhance-selection-actions">
+                <button class="selection-action-btn confirm" id="confirmEnhanceSelectionBtn" disabled>
+                    <i class="fas fa-check"></i>
+                    <span>Confirm Selection</span>
+                </button>
+                <button class="selection-action-btn secondary" id="drawAgainEnhanceSelectionBtn" disabled>
+                    <i class="fas fa-pen"></i>
+                    <span>Draw Again</span>
+                </button>
+                <button class="selection-action-btn secondary" id="saveCropSelectionBtn" disabled>
+                    <i class="fas fa-crop-alt"></i>
+                    <span>Save Crop</span>
+                </button>
+                <button class="selection-action-btn cancel" id="cancelEnhanceSelectionBtn">
+                    <i class="fas fa-times"></i>
+                    <span>Cancel</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="playlist-widget alternate-versions-widget" id="alternateVersionsWidget">
+            <div class="alternate-versions-header">
+                <div class="alternate-versions-title">Alternates</div>
+                <div class="alternate-versions-count" id="alternateVersionsCount">1 saved</div>
+            </div>
+            <div class="alternate-versions-empty" id="alternateVersionsEmpty">
+                No saved alternates for this image yet.
+            </div>
+            <div class="alternate-versions-list" id="alternateVersionsList"></div>
         </div>
 
         <!-- Comparison View (hidden by default) -->
@@ -1094,6 +1346,73 @@
         <span id="enhanceStatusText">Processing...</span>
     </div>
 
+    <div class="enhance-modal-backdrop" id="enhancePromptModal">
+        <div class="enhance-modal" role="dialog" aria-modal="true" aria-labelledby="enhancePromptTitle">
+            <div class="enhance-modal-header">
+                <h2 class="enhance-modal-title" id="enhancePromptTitle">Describe the edit</h2>
+                <p class="enhance-modal-subtitle">
+                    Pick a starting prompt, then adjust it before running the enhancement on your selected area.
+                </p>
+            </div>
+
+            <div class="enhance-preset-grid" id="enhancePresetGrid">
+                <button type="button" class="enhance-preset-btn" data-preset="eyes">Eyes</button>
+                <button type="button" class="enhance-preset-btn" data-preset="hands">Hands</button>
+                <button type="button" class="enhance-preset-btn" data-preset="feet">Feet</button>
+                <button type="button" class="enhance-preset-btn" data-preset="general">General</button>
+            </div>
+
+            <div class="saved-preset-section">
+                <div class="saved-preset-header">
+                    <div class="saved-preset-title">Saved presets</div>
+                    <div class="saved-preset-count" id="savedPresetCount">0 saved</div>
+                </div>
+                <div class="saved-preset-empty" id="savedPresetEmpty">
+                    No saved presets for this post yet.
+                </div>
+                <div class="saved-preset-grid" id="savedPresetGrid"></div>
+            </div>
+
+            <label class="enhance-modal-label" for="enhancePromptInput">Prompt</label>
+            <textarea
+                id="enhancePromptInput"
+                class="enhance-modal-textarea"
+                spellcheck="false"
+                placeholder="Describe what should improve inside the selected area."
+            ></textarea>
+            <div class="enhance-modal-note">
+                The prompt can be edited freely before you run the enhancement.
+            </div>
+            <div class="preset-save-row">
+                <input
+                    type="text"
+                    id="enhancePresetNameInput"
+                    class="preset-save-input"
+                    maxlength="80"
+                    placeholder="Name this preset"
+                >
+                <button type="button" class="preset-save-btn" id="saveEnhancePresetBtn">Save Preset</button>
+            </div>
+
+            <div class="focus-archive-section">
+                <div class="focus-archive-header">
+                    <div class="focus-archive-title">Saved focus references</div>
+                    <div class="focus-archive-count" id="focusArchiveCount">0 selected</div>
+                </div>
+                <div class="focus-archive-empty" id="focusArchiveEmpty">
+                    No saved focus crops for this post yet.
+                </div>
+                <div class="focus-archive-grid" id="focusArchiveGrid"></div>
+            </div>
+
+            <div class="enhance-modal-actions">
+                <button type="button" class="enhance-modal-btn secondary" id="cancelEnhancePromptBtn">Cancel</button>
+                <button type="button" class="enhance-modal-btn secondary" id="backToSelectionBtn">Back to Selection</button>
+                <button type="button" class="enhance-modal-btn primary" id="runEnhancementBtn">Enhance</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Custom Cursor -->
     <div class="custom-cursor" id="customCursor">
         <img src="/styles/cupid_arrow.png" alt="cursor">
@@ -1130,30 +1449,50 @@
         // Enhancement state
         let enhancementState = {
             isProcessing: false,
-            settingsVisible: false,
+            selectionMode: false,
+            promptModalOpen: false,
             currentEnhancedPath: null,
             currentEnhancedFilename: null,
             currentOriginalPath: null,
-            customMaskEnabled: false,
+            currentSourceRunId: null,
+            currentEnhancementJobId: null,
             maskCoords: null,
+            lastSelectionMaskCoords: null,
             lastConfig: null,
             sdWebuiAvailable: false,
-            // Settings (preserved during session, reset between posts)
             denoisingStrength: 0.2,
-            positivePrompt: "masterpiece, best quality, highly detailed anime eyes, sharp clear pupils, beautiful iris detail, perfect symmetry, extremely detailed, 8k, ultra sharp focus",
+            selectedPromptPreset: 'eyes',
+            alternateVersions: [],
+            alternateBaseFilename: null,
+            isSwitchingAlternate: false,
+            focusArchiveItems: [],
+            selectedReferenceAssetIds: [],
+            savedPresets: [],
+            selectedSavedPresetId: null,
+            isSavingPreset: false,
+            positivePrompt: "Edit only the eyes inside the target region. Improve the clarity and definition of the eyes while preserving the original character design and existing anime art style. Keep the eye shape, gaze, expression, colour palette, eyelashes, eyelids, surrounding skin shading, and nearby hair details consistent with the original image. Make the eyes look cleaner, sharper, and slightly more readable, but do not redesign them or introduce a new style. Do not alter any other part of the image.",
             negativePrompt: "blurry, low quality, distorted, malformed eyes, asymmetric, watermark"
         };
+
+        const ENHANCEMENT_PROMPT_SUFFIX = "Keep the change tightly limited to the selected region, preserve the surrounding artwork and composition, and do not alter unrelated parts of the image.";
+
+        const ENHANCEMENT_PROMPT_PRESETS = {
+            eyes: `Edit only the eyes inside the target region. Improve the clarity and definition of the eyes while preserving the original character design and existing anime art style. Keep the eye shape, gaze, expression, colour palette, eyelashes, eyelids, surrounding skin shading, and nearby hair details consistent with the original image. Make the eyes look cleaner, sharper, and slightly more readable, but do not redesign them or introduce a new style. Do not alter any other part of the image.`,
+            hands: `Edit only the hands inside the target region. Improve hand clarity and anatomy while preserving the original character design and existing anime art style. Keep the hand pose, finger count where visible, proportions, skin shading, linework, and nearby accessories or clothing details consistent with the original image. Make the hands look cleaner, more coherent, and more readable, but do not redesign them or introduce extra, fused, or distorted fingers. ${ENHANCEMENT_PROMPT_SUFFIX}`,
+            feet: `Edit only the feet inside the target region. Improve foot clarity and anatomy while preserving the original character design and existing anime art style. Keep the pose, toe count where visible, proportions, skin shading, footwear details, and nearby clothing or background details consistent with the original image. Make the feet look cleaner, more coherent, and more readable, but do not redesign them or introduce extra, missing, or distorted toes. ${ENHANCEMENT_PROMPT_SUFFIX}`,
+            general: `Edit only the selected region according to the user's request while preserving the original character design and existing anime art style. Keep nearby colours, shading, linework, lighting, and composition consistent with the original image. Make the requested change cleanly and naturally without redesigning unaffected elements. ${ENHANCEMENT_PROMPT_SUFFIX}`
+        };
+
+        enhancementState.positivePrompt = ENHANCEMENT_PROMPT_PRESETS[enhancementState.selectedPromptPreset];
         
         // Check if we're on a different post and reset settings
         const lastPostId = sessionStorage.getItem('lastEnhancePostId');
         if (lastPostId !== postId) {
             sessionStorage.setItem('lastEnhancePostId', postId);
             enhancementState.denoisingStrength = 0.2;
-            enhancementState.positivePrompt = "masterpiece, best quality, highly detailed anime eyes, sharp clear pupils, beautiful iris detail, perfect symmetry, extremely detailed, 8k, ultra sharp focus";
+            enhancementState.selectedPromptPreset = 'eyes';
+            enhancementState.positivePrompt = ENHANCEMENT_PROMPT_PRESETS.eyes;
             enhancementState.negativePrompt = "blurry, low quality, distorted, malformed eyes, asymmetric, watermark";
-            document.getElementById('denoisingSlider').value = 0.2;
-            document.getElementById('positivePrompt').value = enhancementState.positivePrompt;
-            document.getElementById('negativePrompt').value = enhancementState.negativePrompt;
         }
         
         // Initialize size slider
@@ -1189,13 +1528,17 @@
             }
             
             // Update mask canvas to match new scale (only if initialized)
-            if (typeof maskDrawing !== 'undefined' && maskDrawing.canvas && enhancementState.customMaskEnabled) {
+            if (typeof maskDrawing !== 'undefined' && maskDrawing.canvas && enhancementState.selectionMode) {
                 updateCanvasSize();
             }
         }
         
         // Click navigation on image (left side = previous, right side = next)
         currentImageEl.addEventListener('click', function(e) {
+            if (enhancementState.selectionMode) {
+                return;
+            }
+
             const rect = this.getBoundingClientRect();
             const clickX = e.clientX - rect.left;
             const imageWidth = rect.width;
@@ -1285,9 +1628,520 @@
                 }
             }
         }
-        
+
+        function clearSelectionRectangle(preserveSelectionSnapshot = false) {
+            enhancementState.maskCoords = null;
+            if (!preserveSelectionSnapshot) {
+                enhancementState.lastSelectionMaskCoords = null;
+            }
+            if (maskDrawing.ctx && maskDrawing.canvas) {
+                maskDrawing.ctx.clearRect(0, 0, maskDrawing.canvas.width, maskDrawing.canvas.height);
+            }
+            updateSelectionWidget();
+        }
+
+        function updateSelectionWidget() {
+            const selectionWidget = document.getElementById('enhanceSelectionWidget');
+            const selectionHint = document.getElementById('enhanceSelectionHint');
+            const confirmBtn = document.getElementById('confirmEnhanceSelectionBtn');
+            const drawAgainBtn = document.getElementById('drawAgainEnhanceSelectionBtn');
+            const saveCropBtn = document.getElementById('saveCropSelectionBtn');
+
+            selectionWidget.classList.toggle('active', enhancementState.selectionMode);
+
+            if (!enhancementState.selectionMode) {
+                confirmBtn.disabled = true;
+                drawAgainBtn.disabled = true;
+                saveCropBtn.disabled = true;
+                selectionHint.textContent = 'Draw a box around the area you want to enhance.';
+                return;
+            }
+
+            const hasSelection = !!enhancementState.maskCoords;
+            confirmBtn.disabled = !hasSelection;
+            drawAgainBtn.disabled = !hasSelection;
+             saveCropBtn.disabled = !hasSelection;
+            selectionHint.textContent = hasSelection
+                ? 'Selection ready. Confirm to write the prompt, save the crop, or draw again.'
+                : 'Draw a box around the area you want to enhance.';
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function updateFocusArchiveCount() {
+            const selectedCount = enhancementState.selectedReferenceAssetIds.length;
+            const totalCount = enhancementState.focusArchiveItems.length;
+            const countEl = document.getElementById('focusArchiveCount');
+            countEl.textContent = `${selectedCount} selected${totalCount ? ` · ${totalCount} saved` : ''}`;
+        }
+
+        function formatAlternateDate(value) {
+            if (!value) return '';
+            const date = new Date(value);
+            if (Number.isNaN(date.getTime())) return '';
+            return date.toLocaleString([], {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        function renderAlternateVersions() {
+            const list = document.getElementById('alternateVersionsList');
+            const empty = document.getElementById('alternateVersionsEmpty');
+            const count = document.getElementById('alternateVersionsCount');
+            const alternates = enhancementState.alternateVersions || [];
+
+            count.textContent = `${alternates.length || 1} saved`;
+
+            if (!alternates.length) {
+                list.innerHTML = '';
+                list.style.display = 'none';
+                empty.style.display = 'block';
+                return;
+            }
+
+            list.style.display = 'grid';
+            empty.style.display = 'none';
+            list.innerHTML = alternates.map((alt) => {
+                const activeClass = alt.active ? 'active' : '';
+                const metaParts = [
+                    alt.kind === 'original' ? 'Original source' : 'Enhanced alternate',
+                    formatAlternateDate(alt.created_at)
+                ].filter(Boolean);
+                return `
+                    <button
+                        type="button"
+                        class="alternate-version-btn ${activeClass}"
+                        data-filename="${escapeHtml(alt.filename)}"
+                        ${enhancementState.isSwitchingAlternate ? 'disabled' : ''}
+                    >
+                        <span class="alternate-version-label">${escapeHtml(alt.display_label || alt.filename)}</span>
+                        <span class="alternate-version-meta">${escapeHtml(metaParts.join(' · '))}</span>
+                    </button>
+                `;
+            }).join('');
+
+            list.querySelectorAll('.alternate-version-btn').forEach((button) => {
+                button.addEventListener('click', () => activateAlternateVersion(button.dataset.filename));
+            });
+        }
+
+        async function loadAlternatesForCurrentImage() {
+            const currentImage = images[currentImageIndex];
+            if (!currentImage) return;
+
+            try {
+                const response = await fetch(`/api/enhance/${postId}/${currentImage.filename}/alternates`);
+                const data = await response.json();
+                if (!response.ok || !data.success) {
+                    throw new Error(data.error || 'Failed to load alternates');
+                }
+
+                enhancementState.alternateVersions = data.data?.alternates || [];
+                enhancementState.alternateBaseFilename = data.data?.base_image_filename || null;
+            } catch (error) {
+                console.error('Failed to load alternates:', error);
+                enhancementState.alternateVersions = [];
+                enhancementState.alternateBaseFilename = null;
+            }
+
+            renderAlternateVersions();
+        }
+
+        async function activateAlternateVersion(targetFilename) {
+            const currentImage = images[currentImageIndex];
+            if (!currentImage || !targetFilename || enhancementState.isSwitchingAlternate) return;
+            if (currentImage.filename === targetFilename) return;
+
+            enhancementState.isSwitchingAlternate = true;
+            renderAlternateVersions();
+            showEnhanceStatus('Switching displayed alternate...', 'loading');
+
+            try {
+                const response = await fetch(
+                    `/api/enhance/${postId}/${currentImage.filename}/alternates/activate`,
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ target_filename: targetFilename })
+                    }
+                );
+                const data = await response.json();
+                if (!response.ok || !data.success) {
+                    throw new Error(data.error || 'Failed to switch alternate');
+                }
+
+                images[currentImageIndex].filename = data.data.active_filename;
+                enhancementState.alternateVersions = data.data.alternates || [];
+                enhancementState.alternateBaseFilename = data.data.base_image_filename || null;
+                renderAlternateVersions();
+                updateImage();
+                showEnhanceStatus('Displayed alternate updated', 'success');
+            } catch (error) {
+                console.error('Failed to activate alternate:', error);
+                showEnhanceStatus(error.message || 'Failed to switch alternate', 'error');
+            } finally {
+                enhancementState.isSwitchingAlternate = false;
+                renderAlternateVersions();
+            }
+        }
+
+        function renderFocusArchive() {
+            const grid = document.getElementById('focusArchiveGrid');
+            const empty = document.getElementById('focusArchiveEmpty');
+            const items = enhancementState.focusArchiveItems || [];
+
+            updateFocusArchiveCount();
+
+            if (!items.length) {
+                grid.innerHTML = '';
+                grid.style.display = 'none';
+                empty.style.display = 'block';
+                return;
+            }
+
+            empty.style.display = 'none';
+            grid.style.display = 'grid';
+            grid.innerHTML = items.map((item) => {
+                const isSelected = enhancementState.selectedReferenceAssetIds.includes(item.asset_id);
+                const typeLabel = item.asset_type === 'edited_focus' ? 'Edited focus' : 'Raw crop';
+                const sourceLabel = item.source_enhanced_filename || item.source_image_filename || '';
+                return `
+                    <button
+                        type="button"
+                        class="focus-archive-card ${isSelected ? 'active' : ''}"
+                        data-asset-id="${escapeHtml(item.asset_id)}"
+                    >
+                        <img src="${escapeHtml(item.image_url)}" alt="${escapeHtml(typeLabel)}">
+                        <span class="focus-archive-card-type">${escapeHtml(typeLabel)}</span>
+                        <span class="focus-archive-card-meta">${escapeHtml(sourceLabel)}</span>
+                    </button>
+                `;
+            }).join('');
+
+            grid.querySelectorAll('.focus-archive-card').forEach((button) => {
+                button.addEventListener('click', () => toggleFocusArchiveSelection(button.dataset.assetId));
+            });
+        }
+
+        function toggleFocusArchiveSelection(assetId) {
+            if (!assetId) return;
+
+            if (enhancementState.selectedReferenceAssetIds.includes(assetId)) {
+                enhancementState.selectedReferenceAssetIds = enhancementState.selectedReferenceAssetIds.filter((id) => id !== assetId);
+            } else {
+                enhancementState.selectedReferenceAssetIds = [...enhancementState.selectedReferenceAssetIds, assetId];
+            }
+
+            renderFocusArchive();
+        }
+
+        async function loadFocusArchive() {
+            try {
+                const response = await fetch(`/api/enhance/${postId}/focus-assets`);
+                const data = await response.json();
+
+                if (!response.ok || !data.success) {
+                    throw new Error(data.error || 'Failed to load focus archive');
+                }
+
+                enhancementState.focusArchiveItems = data.data?.items || [];
+                const availableIds = new Set(enhancementState.focusArchiveItems.map((item) => item.asset_id));
+                enhancementState.selectedReferenceAssetIds = enhancementState.selectedReferenceAssetIds.filter((id) => availableIds.has(id));
+                renderFocusArchive();
+            } catch (error) {
+                console.error('Failed to load focus archive:', error);
+                enhancementState.focusArchiveItems = [];
+                enhancementState.selectedReferenceAssetIds = [];
+                renderFocusArchive();
+            }
+        }
+
+        function updatePromptPresetButtons() {
+            document.querySelectorAll('.enhance-preset-btn').forEach((button) => {
+                button.classList.toggle('active', button.dataset.preset === enhancementState.selectedPromptPreset);
+            });
+            document.querySelectorAll('.saved-preset-btn').forEach((button) => {
+                button.classList.toggle('active', button.dataset.presetId === enhancementState.selectedSavedPresetId);
+            });
+        }
+
+        function applyPromptPreset(presetKey) {
+            if (!ENHANCEMENT_PROMPT_PRESETS[presetKey]) return;
+
+            enhancementState.selectedPromptPreset = presetKey;
+            enhancementState.selectedSavedPresetId = null;
+            enhancementState.positivePrompt = ENHANCEMENT_PROMPT_PRESETS[presetKey];
+            document.getElementById('enhancePromptInput').value = enhancementState.positivePrompt;
+            updatePromptPresetButtons();
+        }
+
+        function renderSavedPresets() {
+            const grid = document.getElementById('savedPresetGrid');
+            const empty = document.getElementById('savedPresetEmpty');
+            const count = document.getElementById('savedPresetCount');
+            const items = enhancementState.savedPresets || [];
+
+            count.textContent = `${items.length} saved`;
+
+            if (!items.length) {
+                grid.innerHTML = '';
+                grid.style.display = 'none';
+                empty.style.display = 'block';
+                updatePromptPresetButtons();
+                return;
+            }
+
+            empty.style.display = 'none';
+            grid.style.display = 'flex';
+            grid.innerHTML = items.map((item) => {
+                const refLabel = item.reference_count === 1 ? '1 ref' : `${item.reference_count || 0} refs`;
+                return `
+                    <button
+                        type="button"
+                        class="saved-preset-btn"
+                        data-preset-id="${escapeHtml(item.preset_id)}"
+                    >
+                        <span class="saved-preset-name">${escapeHtml(item.name)}</span>
+                        <span class="saved-preset-meta">${escapeHtml(refLabel)}</span>
+                    </button>
+                `;
+            }).join('');
+
+            grid.querySelectorAll('.saved-preset-btn').forEach((button) => {
+                button.addEventListener('click', () => applySavedPreset(button.dataset.presetId));
+            });
+
+            updatePromptPresetButtons();
+        }
+
+        function applySavedPreset(presetId) {
+            const preset = (enhancementState.savedPresets || []).find((item) => item.preset_id === presetId);
+            if (!preset) return;
+
+            enhancementState.selectedPromptPreset = null;
+            enhancementState.selectedSavedPresetId = presetId;
+            enhancementState.positivePrompt = preset.prompt_text || '';
+            enhancementState.selectedReferenceAssetIds = [...(preset.reference_asset_ids || [])];
+            document.getElementById('enhancePromptInput').value = enhancementState.positivePrompt;
+            renderFocusArchive();
+            updatePromptPresetButtons();
+        }
+
+        async function loadSavedPresets() {
+            try {
+                const response = await fetch(`/api/enhance/${postId}/presets`);
+                const data = await response.json();
+
+                if (!response.ok || !data.success) {
+                    throw new Error(data.error || 'Failed to load presets');
+                }
+
+                enhancementState.savedPresets = data.data?.items || [];
+                const validIds = new Set(enhancementState.savedPresets.map((item) => item.preset_id));
+                if (!validIds.has(enhancementState.selectedSavedPresetId)) {
+                    enhancementState.selectedSavedPresetId = null;
+                }
+                renderSavedPresets();
+            } catch (error) {
+                console.error('Failed to load saved presets:', error);
+                enhancementState.savedPresets = [];
+                enhancementState.selectedSavedPresetId = null;
+                renderSavedPresets();
+            }
+        }
+
+        async function saveCurrentPreset() {
+            if (enhancementState.isSavingPreset) return;
+
+            const nameInput = document.getElementById('enhancePresetNameInput');
+            const promptInput = document.getElementById('enhancePromptInput');
+            const presetName = nameInput.value.trim();
+            const promptValue = promptInput.value.trim();
+
+            if (!presetName) {
+                showEnhanceStatus('Enter a preset name first', 'error');
+                nameInput.focus();
+                return;
+            }
+
+            if (!promptValue) {
+                showEnhanceStatus('Enter a prompt before saving a preset', 'error');
+                promptInput.focus();
+                return;
+            }
+
+            enhancementState.isSavingPreset = true;
+            const saveBtn = document.getElementById('saveEnhancePresetBtn');
+            const originalLabel = saveBtn.textContent;
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Saving...';
+
+            try {
+                const response = await fetch(`/api/enhance/${postId}/presets`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: presetName,
+                        prompt_text: promptValue,
+                        reference_asset_ids: enhancementState.selectedReferenceAssetIds
+                    })
+                });
+                const data = await response.json();
+
+                if (!response.ok || !data.success) {
+                    throw new Error(data.error || 'Failed to save preset');
+                }
+
+                const preset = data.data?.preset;
+                enhancementState.savedPresets = data.data?.presets?.items || [];
+                enhancementState.selectedPromptPreset = null;
+                enhancementState.selectedSavedPresetId = preset?.preset_id || null;
+                enhancementState.positivePrompt = promptValue;
+                nameInput.value = '';
+                renderSavedPresets();
+                showEnhanceStatus('Preset saved', 'success');
+                showNotification('Preset saved for this post', 'success');
+            } catch (error) {
+                console.error('Failed to save preset:', error);
+                showEnhanceStatus(error.message || 'Failed to save preset', 'error');
+                showNotification('Failed to save preset', 'error');
+            } finally {
+                enhancementState.isSavingPreset = false;
+                saveBtn.disabled = false;
+                saveBtn.textContent = originalLabel;
+            }
+        }
+
+        async function openEnhancePromptModal() {
+            if (!enhancementState.maskCoords) {
+                showEnhanceStatus('Draw a selection before continuing', 'error');
+                return;
+            }
+
+            await Promise.all([loadFocusArchive(), loadSavedPresets()]);
+            enhancementState.promptModalOpen = true;
+            document.getElementById('enhancePromptModal').classList.add('active');
+            const promptInput = document.getElementById('enhancePromptInput');
+            updatePromptPresetButtons();
+            promptInput.value = enhancementState.positivePrompt || ENHANCEMENT_PROMPT_PRESETS[enhancementState.selectedPromptPreset || 'eyes'];
+            promptInput.focus();
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeEnhancePromptModal() {
+            enhancementState.promptModalOpen = false;
+            document.getElementById('enhancePromptModal').classList.remove('active');
+            document.body.style.overflow = '';
+        }
+
+        function runEnhancementFromModal() {
+            const promptInput = document.getElementById('enhancePromptInput');
+            const promptValue = promptInput.value.trim();
+
+            if (!promptValue) {
+                showEnhanceStatus('Enter a prompt before enhancing', 'error');
+                promptInput.focus();
+                return;
+            }
+
+            enhancementState.positivePrompt = promptValue;
+            closeEnhancePromptModal();
+            enhanceImage();
+        }
+
+        function enterSelectionMode() {
+            if (enhancementState.isProcessing) return;
+
+            enhancementState.selectionMode = true;
+            const canvas = document.getElementById('maskCanvas');
+            canvas.classList.add('active');
+            updateCanvasSize();
+            clearSelectionRectangle();
+            updateSelectionWidget();
+            showNotification('Draw a rectangle around the area to enhance', 'success');
+        }
+
+        async function saveCurrentCrop() {
+            if (enhancementState.isProcessing || !enhancementState.maskCoords) {
+                showEnhanceStatus('Draw a selection before saving a crop', 'error');
+                return;
+            }
+
+            const currentImage = images[currentImageIndex];
+            if (!currentImage) return;
+
+            const saveCropBtn = document.getElementById('saveCropSelectionBtn');
+            const originalMarkup = saveCropBtn.innerHTML;
+            saveCropBtn.disabled = true;
+            saveCropBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Saving Crop...</span>';
+            showEnhanceStatus('Saving focus crop...', 'loading');
+
+            try {
+                const response = await fetch(
+                    `/api/enhance/${postId}/${currentImage.filename}/save-crop`,
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            custom_mask: enhancementState.maskCoords,
+                            prompt: enhancementState.positivePrompt,
+                            reference_asset_ids: enhancementState.selectedReferenceAssetIds
+                        })
+                    }
+                );
+
+                const data = await response.json();
+                if (!response.ok || !data.success) {
+                    throw new Error(data.error || 'Failed to save focus crop');
+                }
+
+                const savedItem = data.data?.item;
+                if (savedItem?.asset_id && !enhancementState.selectedReferenceAssetIds.includes(savedItem.asset_id)) {
+                    enhancementState.selectedReferenceAssetIds = [...enhancementState.selectedReferenceAssetIds, savedItem.asset_id];
+                }
+
+                await loadFocusArchive();
+                showEnhanceStatus('Focus crop saved', 'success');
+                showNotification('Focus crop saved to this post', 'success');
+            } catch (error) {
+                console.error('Failed to save focus crop:', error);
+                showEnhanceStatus(error.message || 'Failed to save focus crop', 'error');
+                showNotification('Failed to save focus crop', 'error');
+            } finally {
+                saveCropBtn.innerHTML = originalMarkup;
+                updateSelectionWidget();
+            }
+        }
+
+        function cancelSelectionMode(showMessage = false, preserveSelectionSnapshot = false) {
+            enhancementState.selectionMode = false;
+            closeEnhancePromptModal();
+            const canvas = document.getElementById('maskCanvas');
+            canvas.classList.remove('active');
+            clearSelectionRectangle(preserveSelectionSnapshot);
+            updateSelectionWidget();
+            if (showMessage) {
+                showNotification('Image enhancement cancelled', 'success');
+            }
+        }
+
         function updateImage() {
             if (images.length === 0) return;
+
+            if (enhancementState.selectionMode) {
+                cancelSelectionMode(false);
+            }
 
             const currentImage = images[currentImageIndex];
             const imgElement = document.getElementById('currentImage');
@@ -1313,6 +2167,8 @@
             const newUrl = new URL(window.location);
             newUrl.searchParams.set('image', currentImageIndex);
             window.history.replaceState({}, '', newUrl);
+
+            loadAlternatesForCurrentImage();
         }
 
         document.getElementById('prevImage').addEventListener('click', () => {
@@ -1331,6 +2187,10 @@
         
         // Keyboard navigation
         document.addEventListener('keydown', (e) => {
+            if (enhancementState.selectionMode || enhancementState.promptModalOpen) {
+                return;
+            }
+
             switch(e.key) {
                 case 'ArrowLeft':
                     if (currentImageIndex > 0) {
@@ -1501,33 +2361,15 @@
             }
         }
         
-        async function startSDWebUI() {
-            showEnhanceStatus('Starting Stable Diffusion WebUI...', 'loading');
-            
-            try {
-                const response = await fetch('/api/enhance/start-sd-webui', { method: 'POST' });
-                const data = await response.json();
-                
-                if (data.success) {
-                    enhancementState.sdWebuiAvailable = true;
-                    showEnhanceStatus('SD WebUI started successfully', 'success');
-                    return true;
-                } else {
-                    showEnhanceStatus(`Failed to start SD WebUI: ${data.error}`, 'error');
-                    return false;
-                }
-            } catch (error) {
-                console.error('Failed to start SD WebUI:', error);
-                showEnhanceStatus('Failed to start SD WebUI', 'error');
-                return false;
-            }
-        }
-        
         async function enhanceImage() {
             if (enhancementState.isProcessing) return;
             
             const currentImage = images[currentImageIndex];
             if (!currentImage) return;
+            if (!enhancementState.maskCoords) {
+                showEnhanceStatus('Draw a selection before enhancing', 'error');
+                return;
+            }
             
             enhancementState.isProcessing = true;
             const enhanceBtn = document.getElementById('enhanceBtn');
@@ -1535,35 +2377,26 @@
             enhanceBtn.disabled = true;
             
             try {
-                // Check if SD WebUI is available
                 const status = await checkEnhanceStatus();
                 if (!status.available) {
-                    // Show appropriate message based on KEEP_WEBUI_ALIVE setting
-                    if (status.keep_alive_enabled) {
-                        showEnhanceStatus(status.message || 'SD WebUI is starting up. Please wait...', 'info');
-                    } else {
-                        showEnhanceStatus(status.message || 'SD WebUI is not running. Please enable KEEP_WEBUI_ALIVE in config.', 'error');
-                    }
+                    showEnhanceStatus(status.message || 'Zo image editing is not available right now.', 'error');
                     enhancementState.isProcessing = false;
                     enhanceBtn.classList.remove('loading');
                     enhanceBtn.disabled = false;
                     return;
                 }
                 
-                // Show processing status
-                showEnhanceStatus('Detecting eyes and enhancing...', 'loading');
+                showEnhanceStatus('Enhancing selected area...', 'loading');
                 
                 // Prepare request body
                 const requestBody = {
                     denoising_strength: enhancementState.denoisingStrength,
                     prompt: enhancementState.positivePrompt,
-                    negative_prompt: enhancementState.negativePrompt
+                    negative_prompt: enhancementState.negativePrompt,
+                    reference_asset_ids: enhancementState.selectedReferenceAssetIds
                 };
                 
-                // Add custom mask if enabled
-                if (enhancementState.customMaskEnabled && enhancementState.maskCoords) {
-                    requestBody.custom_mask = enhancementState.maskCoords;
-                }
+                requestBody.custom_mask = enhancementState.maskCoords;
                 
                 // Call enhancement API
                 const response = await fetch(
@@ -1577,49 +2410,87 @@
                 
                 const data = await response.json();
                 
-                if (data.success) {
-                    // Store filename and config for save/discard operations
-                    enhancementState.currentEnhancedFilename = data.data.enhanced_filename;
+                if (response.ok && data.success && data.data?.job_id) {
+                    enhancementState.currentEnhancementJobId = data.data.job_id;
                     enhancementState.currentOriginalPath = currentImage.filename;
-                    enhancementState.lastConfig = data.data.config;
-                    showEnhanceStatus('Enhancement complete!', 'success');
-                    
-                    // Reset custom mask mode after successful enhancement
-                    resetCustomMaskMode();
-                    
-                    showComparison();
+                    enhancementState.lastSelectionMaskCoords = enhancementState.maskCoords
+                        ? { ...enhancementState.maskCoords }
+                        : null;
+                    showEnhanceStatus('Enhancement running...', 'loading');
+                    await waitForEnhancementJob(data.data.job_id, currentImage.filename);
                 } else {
                     showEnhanceStatus(`Enhancement failed: ${data.error}`, 'error');
+                    enhancementState.isProcessing = false;
+                    enhanceBtn.classList.remove('loading');
+                    enhanceBtn.disabled = false;
                 }
             } catch (error) {
                 console.error('Enhancement failed:', error);
                 showEnhanceStatus('Enhancement failed', 'error');
-            } finally {
                 enhancementState.isProcessing = false;
                 enhanceBtn.classList.remove('loading');
                 enhanceBtn.disabled = false;
             }
         }
-        
-        function resetCustomMaskMode() {
-            // Uncheck the custom mask checkbox
-            const customMaskCheckbox = document.getElementById('customMaskCheckbox');
-            if (customMaskCheckbox) {
-                customMaskCheckbox.checked = false;
-            }
-            
-            // Disable custom mask mode
-            enhancementState.customMaskEnabled = false;
-            enhancementState.maskCoords = null;
-            
-            // Remove canvas overlay and clear the drawn rectangle
-            const canvas = document.getElementById('maskCanvas');
-            if (canvas) {
-                canvas.classList.remove('active');
-                if (maskDrawing.ctx) {
-                    maskDrawing.ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        async function waitForEnhancementJob(jobId, originalFilename) {
+            const enhanceBtn = document.getElementById('enhanceBtn');
+            const pollIntervalMs = 2000;
+            const timeoutMs = 6 * 60 * 1000;
+            const startedAt = Date.now();
+
+            while (Date.now() - startedAt < timeoutMs) {
+                try {
+                    const response = await fetch(`/api/enhance/jobs/${jobId}`);
+                    const data = await response.json();
+
+                    if (!response.ok || !data.success || !data.data) {
+                        throw new Error(data.error || 'Failed to poll enhancement status');
+                    }
+
+                    const job = data.data;
+                    if (job.status === 'queued' || job.status === 'running') {
+                        showEnhanceStatus('Enhancement running...', 'loading');
+                        await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+                        continue;
+                    }
+
+                    if (job.status === 'succeeded' && job.result) {
+                        enhancementState.currentEnhancedFilename = job.result.enhanced_filename;
+                        enhancementState.currentOriginalPath = originalFilename;
+                        enhancementState.lastConfig = job.result.config;
+                        enhancementState.currentSourceRunId = job.result.source_run_id || null;
+                        enhancementState.currentEnhancementJobId = null;
+                        enhancementState.isProcessing = false;
+                        enhanceBtn.classList.remove('loading');
+                        enhanceBtn.disabled = false;
+                        showEnhanceStatus('Enhancement complete!', 'success');
+                        cancelSelectionMode(false, true);
+                        showComparison();
+                        return;
+                    }
+
+                    if (job.status === 'failed') {
+                        throw new Error(job.error || 'Enhancement failed');
+                    }
+
+                    throw new Error(`Unexpected enhancement status: ${job.status}`);
+                } catch (error) {
+                    console.error('Enhancement job failed:', error);
+                    enhancementState.currentEnhancementJobId = null;
+                    enhancementState.isProcessing = false;
+                    enhanceBtn.classList.remove('loading');
+                    enhanceBtn.disabled = false;
+                    showEnhanceStatus(error.message || 'Enhancement failed', 'error');
+                    return;
                 }
             }
+
+            enhancementState.currentEnhancementJobId = null;
+            enhancementState.isProcessing = false;
+            enhanceBtn.classList.remove('loading');
+            enhanceBtn.disabled = false;
+            showEnhanceStatus('Enhancement timed out while waiting for completion', 'error');
         }
         
         function showComparison() {
@@ -1653,8 +2524,10 @@
             enhancementState.currentEnhancedPath = null;
             enhancementState.currentEnhancedFilename = null;
             enhancementState.currentOriginalPath = null;
+            enhancementState.currentSourceRunId = null;
             enhancementState.lastConfig = null;
-            enhancementState.maskCoords = null;
+            enhancementState.lastSelectionMaskCoords = null;
+            cancelSelectionMode(false);
         }
         
         async function saveEnhancement() {
@@ -1671,7 +2544,11 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             enhanced_filename: enhancementState.currentEnhancedFilename,
-                            config: enhancementState.lastConfig
+                            config: enhancementState.lastConfig,
+                            custom_mask: enhancementState.lastSelectionMaskCoords || enhancementState.maskCoords,
+                            prompt: enhancementState.positivePrompt,
+                            reference_asset_ids: enhancementState.selectedReferenceAssetIds,
+                            source_run_id: enhancementState.currentSourceRunId
                         })
                     }
                 );
@@ -1681,6 +2558,9 @@
                 if (data.success) {
                     showEnhanceStatus('Enhanced image saved!', 'success');
                     showNotification('Enhanced image saved successfully', 'success');
+                    await loadFocusArchive();
+                    enhancementState.alternateVersions = data.alternates?.alternates || enhancementState.alternateVersions;
+                    enhancementState.alternateBaseFilename = data.alternates?.base_image_filename || enhancementState.alternateBaseFilename;
                     
                     // Update the image in the array and reload
                     images[currentImageIndex].filename = data.new_filename;
@@ -1793,7 +2673,7 @@
         }
         
         function startDrawingMask(e) {
-            if (!enhancementState.customMaskEnabled) return;
+            if (!enhancementState.selectionMode) return;
             
             // Update canvas size in case image was scaled
             updateCanvasSize();
@@ -1812,7 +2692,7 @@
         }
         
         function drawMask(e) {
-            if (!maskDrawing.isDrawing || !enhancementState.customMaskEnabled) return;
+            if (!maskDrawing.isDrawing || !enhancementState.selectionMode) return;
             
             const rect = maskDrawing.canvas.getBoundingClientRect();
             let currentX = e.clientX - rect.left;
@@ -1836,7 +2716,7 @@
         }
         
         function endDrawingMask(e) {
-            if (!maskDrawing.isDrawing || !enhancementState.customMaskEnabled) return;
+            if (!maskDrawing.isDrawing || !enhancementState.selectionMode) return;
             
             maskDrawing.isDrawing = false;
             
@@ -1870,83 +2750,56 @@
                 x2: Math.max(0, Math.min(1, x2)),
                 y2: Math.max(0, Math.min(1, y2))
             };
+            enhancementState.lastSelectionMaskCoords = {
+                ...enhancementState.maskCoords
+            };
+
+            if (
+                Math.abs(enhancementState.maskCoords.x2 - enhancementState.maskCoords.x1) < 0.005 ||
+                Math.abs(enhancementState.maskCoords.y2 - enhancementState.maskCoords.y1) < 0.005
+            ) {
+                clearSelectionRectangle();
+                showEnhanceStatus('Selection is too small. Draw a larger box.', 'error');
+                return;
+            }
             
             console.log('Custom mask coordinates (normalized to natural image):', enhancementState.maskCoords);
             console.log('Natural dimensions:', naturalWidth, 'x', naturalHeight);
             console.log('Displayed dimensions:', imgRect.width, 'x', imgRect.height);
+            updateSelectionWidget();
         }
-        
-        // Enhancement settings event listeners
-        document.getElementById('denoisingSlider').addEventListener('input', function() {
-            enhancementState.denoisingStrength = parseFloat(this.value);
-            document.getElementById('denoisingValue').textContent = this.value;
+
+        document.getElementById('enhanceBtn').addEventListener('click', enterSelectionMode);
+        document.getElementById('confirmEnhanceSelectionBtn').addEventListener('click', openEnhancePromptModal);
+        document.getElementById('drawAgainEnhanceSelectionBtn').addEventListener('click', clearSelectionRectangle);
+        document.getElementById('saveCropSelectionBtn').addEventListener('click', saveCurrentCrop);
+        document.getElementById('cancelEnhanceSelectionBtn').addEventListener('click', () => cancelSelectionMode(true));
+        document.getElementById('runEnhancementBtn').addEventListener('click', runEnhancementFromModal);
+        document.getElementById('backToSelectionBtn').addEventListener('click', closeEnhancePromptModal);
+        document.getElementById('cancelEnhancePromptBtn').addEventListener('click', () => cancelSelectionMode(true));
+        document.getElementById('enhancePromptInput').addEventListener('input', (e) => {
+            enhancementState.positivePrompt = e.target.value;
         });
-        
-        document.getElementById('positivePrompt').addEventListener('input', function() {
-            enhancementState.positivePrompt = this.value;
+
+        document.querySelectorAll('.enhance-preset-btn').forEach((button) => {
+            button.addEventListener('click', () => applyPromptPreset(button.dataset.preset));
         });
-        
-        document.getElementById('negativePrompt').addEventListener('input', function() {
-            enhancementState.negativePrompt = this.value;
-        });
-        
-        document.getElementById('customMaskCheckbox').addEventListener('change', function() {
-            enhancementState.customMaskEnabled = this.checked;
-            const canvas = document.getElementById('maskCanvas');
-            
-            if (this.checked) {
-                canvas.classList.add('active');
-                updateCanvasSize();
-                showNotification('Draw a rectangle around the eyes', 'info');
-            } else {
-                canvas.classList.remove('active');
-                maskDrawing.ctx.clearRect(0, 0, canvas.width, canvas.height);
-                enhancementState.maskCoords = null;
+        document.getElementById('saveEnhancePresetBtn').addEventListener('click', saveCurrentPreset);
+        document.getElementById('enhancePresetNameInput').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                saveCurrentPreset();
             }
         });
-        
-        document.getElementById('enhanceBtn').addEventListener('click', () => {
-            // Just trigger enhancement
-            enhanceImage();
-        });
-        
-        document.getElementById('enhanceSettingsBtn').addEventListener('click', () => {
-            // Toggle settings modal
-            enhancementState.settingsVisible = !enhancementState.settingsVisible;
-            const backdrop = document.getElementById('enhanceSettingsBackdrop');
-            const settingsBtn = document.getElementById('enhanceSettingsBtn');
-            
-            if (enhancementState.settingsVisible) {
-                backdrop.classList.add('show');
-                settingsBtn.classList.add('active');
-            } else {
-                backdrop.classList.remove('show');
-                settingsBtn.classList.remove('active');
-            }
-        });
-        
-        // Close button
-        document.getElementById('enhanceSettingsClose').addEventListener('click', () => {
-            enhancementState.settingsVisible = false;
-            document.getElementById('enhanceSettingsBackdrop').classList.remove('show');
-            document.getElementById('enhanceSettingsBtn').classList.remove('active');
-        });
-        
-        // Close on backdrop click (but not on modal click)
-        document.getElementById('enhanceSettingsBackdrop').addEventListener('click', (e) => {
-            if (e.target.id === 'enhanceSettingsBackdrop') {
-                enhancementState.settingsVisible = false;
-                document.getElementById('enhanceSettingsBackdrop').classList.remove('show');
-                document.getElementById('enhanceSettingsBtn').classList.remove('active');
-            }
-        });
-        
-        // Close on Escape key
+
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && enhancementState.settingsVisible) {
-                enhancementState.settingsVisible = false;
-                document.getElementById('enhanceSettingsBackdrop').classList.remove('show');
-                document.getElementById('enhanceSettingsBtn').classList.remove('active');
+            if (e.key === 'Escape' && enhancementState.promptModalOpen) {
+                closeEnhancePromptModal();
+                return;
+            }
+
+            if (e.key === 'Escape' && enhancementState.selectionMode) {
+                cancelSelectionMode(true);
             }
         });
         
@@ -1970,6 +2823,13 @@
         
         // Initialize mask canvas
         initMaskCanvas();
+        updateSelectionWidget();
+        renderFocusArchive();
+        renderSavedPresets();
+        loadFocusArchive();
+        loadSavedPresets();
+        renderAlternateVersions();
+        loadAlternatesForCurrentImage();
         window.addEventListener('resize', updateCanvasSize);
         
         // Event listeners

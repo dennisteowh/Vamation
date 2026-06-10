@@ -490,6 +490,56 @@ def make_binary_mask(size: tuple[int, int], box: tuple[int, int, int, int], shap
     return mask
 
 
+def inset_pixel_box(
+    box: tuple[int, int, int, int],
+    inset_x: int,
+    inset_y: int,
+    min_size: int = 8,
+) -> tuple[int, int, int, int]:
+    left, top, right, bottom = box
+    width = max(1, right - left)
+    height = max(1, bottom - top)
+
+    max_inset_x = max(0, (width - min_size) // 2)
+    max_inset_y = max(0, (height - min_size) // 2)
+    safe_inset_x = clamp_int(inset_x, 0, max_inset_x)
+    safe_inset_y = clamp_int(inset_y, 0, max_inset_y)
+
+    return (
+        left + safe_inset_x,
+        top + safe_inset_y,
+        right - safe_inset_x,
+        bottom - safe_inset_y,
+    )
+
+
+def derive_merge_mask_box(
+    mask_box: tuple[int, int, int, int],
+    context_size: tuple[int, int],
+) -> tuple[int, int, int, int]:
+    left, top, right, bottom = mask_box
+    width = max(1, right - left)
+    height = max(1, bottom - top)
+
+    inset_x = max(
+        Config.ENHANCE_MERGE_INSET_MIN_PX,
+        int(round(width * Config.ENHANCE_MERGE_INSET_RATIO)),
+    )
+    inset_y = max(
+        Config.ENHANCE_MERGE_INSET_MIN_PX,
+        int(round(height * Config.ENHANCE_MERGE_INSET_RATIO)),
+    )
+
+    merge_box = inset_pixel_box(mask_box, inset_x, inset_y, min_size=Config.ENHANCE_MERGE_MIN_SIZE)
+    return normalize_pixel_box(
+        merge_box[0],
+        merge_box[1],
+        merge_box[2] - merge_box[0],
+        merge_box[3] - merge_box[1],
+        context_size,
+    )
+
+
 def resolve_focus_reference_items(post_id: str, post_metadata: dict, asset_ids: list[str]) -> list[dict]:
     """Resolve selected focus asset ids to concrete archive items with files."""
     focus_archive = ensure_focus_archive(post_metadata)
@@ -635,6 +685,10 @@ def create_reference_edit_run(
             'context_pad': Config.ENHANCE_CONTEXT_PAD,
             'blur_radius': Config.ENHANCE_BLUR_RADIUS,
             'merge_feather': Config.ENHANCE_MERGE_FEATHER,
+            'merge_mask_shape': Config.ENHANCE_MERGE_MASK_SHAPE,
+            'merge_inset_ratio': Config.ENHANCE_MERGE_INSET_RATIO,
+            'merge_inset_min_px': Config.ENHANCE_MERGE_INSET_MIN_PX,
+            'merge_min_size': Config.ENHANCE_MERGE_MIN_SIZE,
         },
         'reference_assets': packaged_references,
     }
@@ -793,14 +847,30 @@ def merge_reference_edit_run(run_dir: Path, output_path: Path) -> dict:
         focus_output = focus_output.resize(original_context.size, Image.Resampling.LANCZOS)
 
     settings = request_payload.get('settings', {})
+    merge_box = derive_merge_mask_box(mask_box, original_context.size)
     merge_mask = make_binary_mask(
         original_context.size,
-        mask_box,
-        settings.get('mask_shape', Config.ENHANCE_MASK_SHAPE),
+        merge_box,
+        settings.get('merge_mask_shape', Config.ENHANCE_MERGE_MASK_SHAPE),
     )
     feather = float(settings.get('merge_feather', Config.ENHANCE_MERGE_FEATHER))
     if feather > 0:
         merge_mask = merge_mask.filter(ImageFilter.GaussianBlur(radius=feather))
+
+    source_mask_path = run_dir / 'source-mask.png'
+    if not source_mask_path.exists():
+        make_binary_mask(
+            original_context.size,
+            mask_box,
+            settings.get('mask_shape', Config.ENHANCE_MASK_SHAPE),
+        ).save(source_mask_path, format='PNG')
+
+    merge_core_mask_path = run_dir / 'merge-core-mask.png'
+    make_binary_mask(
+        original_context.size,
+        merge_box,
+        settings.get('merge_mask_shape', Config.ENHANCE_MERGE_MASK_SHAPE),
+    ).save(merge_core_mask_path, format='PNG')
 
     merge_mask_path = run_dir / 'merge-mask.png'
     merge_mask.save(merge_mask_path, format='PNG')
@@ -822,8 +892,26 @@ def merge_reference_edit_run(run_dir: Path, output_path: Path) -> dict:
         'artifacts': {
             **manifest.get('artifacts', {}),
             'focus_output': str(focus_output_path),
+            'source_mask': str(source_mask_path),
+            'merge_core_mask': str(merge_core_mask_path),
             'merge_mask': str(merge_mask_path),
             'merged_output': str(output_path),
+        },
+        'merge': {
+            'source_box': {
+                'left': mask_box[0],
+                'top': mask_box[1],
+                'right': mask_box[2],
+                'bottom': mask_box[3],
+            },
+            'merge_box': {
+                'left': merge_box[0],
+                'top': merge_box[1],
+                'right': merge_box[2],
+                'bottom': merge_box[3],
+            },
+            'feather': feather,
+            'merge_mask_shape': settings.get('merge_mask_shape', Config.ENHANCE_MERGE_MASK_SHAPE),
         },
     })
     safe_save_json(manifest, manifest_path, create_backup=False)
@@ -1333,8 +1421,12 @@ class Config:
     
     ENHANCE_CONTEXT_PAD = int(os.environ.get('VAMATION_ENHANCE_CONTEXT_PAD', '80'))
     ENHANCE_BLUR_RADIUS = float(os.environ.get('VAMATION_ENHANCE_BLUR_RADIUS', '10'))
-    ENHANCE_MERGE_FEATHER = float(os.environ.get('VAMATION_ENHANCE_MERGE_FEATHER', '6'))
+    ENHANCE_MERGE_FEATHER = float(os.environ.get('VAMATION_ENHANCE_MERGE_FEATHER', '16'))
     ENHANCE_MASK_SHAPE = os.environ.get('VAMATION_ENHANCE_MASK_SHAPE', 'rect')
+    ENHANCE_MERGE_MASK_SHAPE = os.environ.get('VAMATION_ENHANCE_MERGE_MASK_SHAPE', 'ellipse')
+    ENHANCE_MERGE_INSET_RATIO = float(os.environ.get('VAMATION_ENHANCE_MERGE_INSET_RATIO', '0.08'))
+    ENHANCE_MERGE_INSET_MIN_PX = int(os.environ.get('VAMATION_ENHANCE_MERGE_INSET_MIN_PX', '6'))
+    ENHANCE_MERGE_MIN_SIZE = int(os.environ.get('VAMATION_ENHANCE_MERGE_MIN_SIZE', '12'))
     ZO_IMAGE_ORCHESTRATOR_MODEL = os.environ.get('VAMATION_ZO_IMAGE_ORCHESTRATOR_MODEL', 'zo:google/gemini-3.1-pro-preview')
     SD_WEBUI_URL = "http://127.0.0.1:7861"
     SD_WEBUI_PATH = r"D:\3D Objects\sd.webui\webui"

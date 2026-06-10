@@ -399,8 +399,12 @@
         .alternate-versions-list {
             display: grid;
             gap: 0.45rem;
-            max-height: 250px;
+        }
+
+        .alternate-versions-list.scrollable {
+            max-height: 320px;
             overflow-y: auto;
+            padding-right: 0.2rem;
         }
 
         .alternate-version-btn {
@@ -1711,6 +1715,7 @@
             }
 
             list.style.display = 'grid';
+            list.classList.toggle('scrollable', alternates.length > 5);
             empty.style.display = 'none';
             list.innerHTML = alternates.map((alt) => {
                 const activeClass = alt.active ? 'active' : '';

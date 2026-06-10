@@ -397,32 +397,53 @@
         }
 
         .alternate-versions-list {
-            display: block;
+            display: grid;
+            gap: 0.45rem;
         }
 
-        .alternate-version-select {
+        .alternate-versions-list.scrollable {
+            max-height: 320px;
+            overflow-y: auto;
+            padding-right: 0.2rem;
+        }
+
+        .alternate-version-btn {
             width: 100%;
             padding: 0.55rem 0.65rem;
             border-radius: 8px;
             border: 1px solid rgba(255, 255, 255, 0.12);
             background: rgba(255, 255, 255, 0.04);
             color: #f1f1f1;
+            text-align: left;
             cursor: pointer;
             transition: all 0.2s ease;
-            font: inherit;
         }
 
-        .alternate-version-select:hover,
-        .alternate-version-select:focus {
+        .alternate-version-btn:hover:not(:disabled),
+        .alternate-version-btn.active {
             border-color: rgba(155, 89, 182, 0.7);
-            background: rgba(155, 89, 182, 0.14);
-            box-shadow: 0 8px 22px rgba(0, 0, 0, 0.24);
-            outline: none;
+            background: rgba(155, 89, 182, 0.18);
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
         }
 
-        .alternate-version-select:disabled {
-            opacity: 0.65;
+        .alternate-version-btn:disabled {
+            opacity: 0.55;
             cursor: wait;
+        }
+
+        .alternate-version-label {
+            display: block;
+            font-size: 0.76rem;
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+        .alternate-version-meta {
+            display: block;
+            margin-top: 0.2rem;
+            font-size: 0.68rem;
+            color: #b9b9b9;
+            line-height: 1.35;
         }
 
         .alternate-versions-empty {
@@ -513,13 +534,11 @@
 
         .enhance-modal {
             width: min(640px, 100%);
-            max-height: calc(100vh - 3rem);
             background: rgba(15, 15, 15, 0.98);
             border: 1px solid rgba(155, 89, 182, 0.35);
             border-radius: 18px;
             box-shadow: 0 24px 80px rgba(0, 0, 0, 0.65);
             padding: 1.5rem;
-            overflow-y: auto;
         }
 
         .enhance-modal-header {
@@ -758,31 +777,15 @@
             gap: 0.7rem;
         }
 
-        .focus-archive-grid.scrollable {
-            max-height: 360px;
-            overflow-y: auto;
-            padding-right: 0.2rem;
-        }
-
         .focus-archive-card {
             padding: 0.4rem;
             border-radius: 12px;
             border: 1px solid rgba(255, 255, 255, 0.1);
             background: rgba(255, 255, 255, 0.04);
             color: #f2f2f2;
+            cursor: pointer;
             text-align: left;
             transition: all 0.2s ease;
-        }
-
-        .focus-archive-card-main {
-            border: none;
-            background: transparent;
-            padding: 0;
-            margin: 0;
-            width: 100%;
-            color: inherit;
-            text-align: inherit;
-            cursor: pointer;
         }
 
         .focus-archive-card:hover,
@@ -802,191 +805,30 @@
             background: rgba(255, 255, 255, 0.05);
         }
 
-        .focus-archive-card-actions {
-            display: flex;
-            justify-content: flex-end;
-            margin-top: 0.4rem;
-        }
-
-        .focus-archive-preview-btn {
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            background: rgba(255, 255, 255, 0.06);
-            color: #f0e3f8;
-            border-radius: 8px;
-            padding: 0.35rem 0.5rem;
+        .focus-archive-card-type {
+            display: block;
+            color: #ffffff;
             font-size: 0.72rem;
             font-weight: 700;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.35rem;
-            transition: all 0.2s ease;
+            line-height: 1.25;
         }
 
-        .focus-archive-preview-btn:hover {
-            background: rgba(155, 89, 182, 0.18);
-            border-color: rgba(155, 89, 182, 0.55);
+        .focus-archive-card-meta {
+            display: block;
+            margin-top: 0.18rem;
+            color: #b6b6b6;
+            font-size: 0.68rem;
+            line-height: 1.35;
         }
 
-        .focus-archive-gallery-backdrop {
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.78);
-            backdrop-filter: blur(12px);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 2200;
-            padding: 1.5rem;
-        }
-
-        .focus-archive-gallery-backdrop.active {
-            display: flex;
-        }
-
-        .focus-archive-gallery {
-            width: min(1100px, 100%);
-            max-height: calc(100vh - 3rem);
-            background: rgba(12, 12, 12, 0.98);
-            border: 1px solid rgba(155, 89, 182, 0.35);
-            border-radius: 20px;
-            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.65);
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .focus-archive-gallery-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 1rem;
-            padding: 1rem 1.1rem;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-        }
-
-        .focus-archive-gallery-title-wrap {
-            min-width: 0;
-        }
-
-        .focus-archive-gallery-title {
-            margin: 0;
-            color: #ffffff;
-            font-size: 1rem;
-            font-weight: 700;
-        }
-
-        .focus-archive-gallery-meta {
-            margin-top: 0.25rem;
-            color: #bababa;
-            font-size: 0.78rem;
-            line-height: 1.45;
-        }
-
-        .focus-archive-gallery-close {
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            background: rgba(255, 255, 255, 0.05);
-            color: #f0f0f0;
-            border-radius: 10px;
-            width: 40px;
-            height: 40px;
-            font-size: 1rem;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .focus-archive-gallery-close:hover,
-        .focus-archive-gallery-nav:hover {
-            background: rgba(155, 89, 182, 0.18);
-            border-color: rgba(155, 89, 182, 0.55);
-        }
-
-        .focus-archive-gallery-body {
-            display: grid;
-            grid-template-columns: 56px minmax(0, 1fr) 56px;
-            align-items: center;
-            gap: 1rem;
-            padding: 1rem;
-            min-height: 0;
-            flex: 1;
-        }
-
-        .focus-archive-gallery-nav {
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            background: rgba(255, 255, 255, 0.05);
-            color: #ffffff;
-            border-radius: 14px;
-            width: 56px;
-            height: 56px;
-            cursor: pointer;
-            font-size: 1.1rem;
-            transition: all 0.2s ease;
-        }
-
-        .focus-archive-gallery-nav:disabled {
-            opacity: 0.35;
-            cursor: not-allowed;
-        }
-
-        .focus-archive-gallery-image-wrap {
-            min-height: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: rgba(255, 255, 255, 0.03);
-            border-radius: 16px;
-            padding: 1rem;
-            height: min(72vh, 820px);
-        }
-
-        .focus-archive-gallery-image {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
+        .focus-archive-empty {
+            padding: 0.8rem 0.9rem;
             border-radius: 12px;
-            box-shadow: 0 16px 44px rgba(0, 0, 0, 0.45);
-            background: rgba(255, 255, 255, 0.04);
-        }
-
-        .focus-archive-gallery-footer {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 1rem;
-            padding: 0.9rem 1.1rem 1.05rem;
-            border-top: 1px solid rgba(255, 255, 255, 0.08);
-        }
-
-        .focus-archive-gallery-counter {
-            color: #d8c3e4;
-            font-size: 0.78rem;
-            font-weight: 700;
-        }
-
-        .focus-archive-gallery-open {
-            color: #f0dcfa;
-            text-decoration: none;
-            font-size: 0.78rem;
-            font-weight: 700;
-        }
-
-        .focus-archive-gallery-open:hover {
-            color: #ffffff;
-        }
-
-        @media (max-width: 720px) {
-            .focus-archive-gallery-body {
-                grid-template-columns: 1fr;
-            }
-
-            .focus-archive-gallery-nav {
-                width: 100%;
-                height: 42px;
-            }
-
-            .focus-archive-gallery-image-wrap {
-                height: min(58vh, 560px);
-            }
+            border: 1px dashed rgba(255, 255, 255, 0.12);
+            background: rgba(255, 255, 255, 0.03);
+            color: #9d9d9d;
+            font-size: 0.75rem;
+            line-height: 1.45;
         }
 
         .enhance-modal-actions {
@@ -1195,7 +1037,48 @@
         }
 
         .comparison-actions {
-            display: none;
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-top: auto;
+            padding-top: 1rem;
+            position: relative;
+            z-index: 10;
+        }
+
+        .comparison-btn {
+            padding: 0.75rem 2rem;
+            border: none;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .comparison-btn.save {
+            background: linear-gradient(135deg, #28a745, #218838);
+            color: #ffffff;
+        }
+
+        .comparison-btn.save:hover {
+            background: linear-gradient(135deg, #218838, #1e7e34);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
+        }
+
+        .comparison-btn.discard {
+            background: linear-gradient(135deg, #dc3545, #c82333);
+            color: #ffffff;
+        }
+
+        .comparison-btn.discard:hover {
+            background: linear-gradient(135deg, #c82333, #bd2130);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(220, 53, 69, 0.4);
         }
 
         /* Canvas Overlay for Mask Drawing */
@@ -1448,6 +1331,14 @@
                     <img class="comparison-image" id="comparisonEnhanced" src="" alt="Enhanced">
                 </div>
             </div>
+            <div class="comparison-actions">
+                <button class="comparison-btn save" id="saveEnhancementBtn">
+                    <i class="fas fa-check"></i> Save Enhanced Version
+                </button>
+                <button class="comparison-btn discard" id="discardEnhancementBtn">
+                    <i class="fas fa-times"></i> Discard &amp; Keep Original
+                </button>
+            </div>
         </div>
 
         <!-- Canvas Overlay for Custom Mask Drawing -->
@@ -1526,35 +1417,6 @@
         </div>
     </div>
 
-    <div class="focus-archive-gallery-backdrop" id="focusArchivePreviewModal">
-        <div class="focus-archive-gallery" role="dialog" aria-modal="true" aria-labelledby="focusArchivePreviewTitle">
-            <div class="focus-archive-gallery-header">
-                <div class="focus-archive-gallery-title-wrap">
-                    <h2 class="focus-archive-gallery-title" id="focusArchivePreviewTitle">Reference preview</h2>
-                    <div class="focus-archive-gallery-meta" id="focusArchivePreviewMeta"></div>
-                </div>
-                <button type="button" class="focus-archive-gallery-close" id="focusArchivePreviewClose" aria-label="Close preview">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <div class="focus-archive-gallery-body">
-                <button type="button" class="focus-archive-gallery-nav" id="focusArchivePreviewPrev" aria-label="Previous reference">
-                    <i class="fas fa-chevron-left"></i>
-                </button>
-                <div class="focus-archive-gallery-image-wrap">
-                    <img class="focus-archive-gallery-image" id="focusArchivePreviewImage" alt="Reference preview">
-                </div>
-                <button type="button" class="focus-archive-gallery-nav" id="focusArchivePreviewNext" aria-label="Next reference">
-                    <i class="fas fa-chevron-right"></i>
-                </button>
-            </div>
-            <div class="focus-archive-gallery-footer">
-                <div class="focus-archive-gallery-counter" id="focusArchivePreviewCounter"></div>
-                <a href="#" target="_blank" rel="noopener noreferrer" class="focus-archive-gallery-open" id="focusArchivePreviewOpenFull">Open full size</a>
-            </div>
-        </div>
-    </div>
-
     <!-- Custom Cursor -->
     <div class="custom-cursor" id="customCursor">
         <img src="/styles/cupid_arrow.png" alt="cursor">
@@ -1593,8 +1455,6 @@
             isProcessing: false,
             selectionMode: false,
             promptModalOpen: false,
-            previewModalOpen: false,
-            previewIndex: -1,
             currentEnhancedPath: null,
             currentEnhancedFilename: null,
             currentOriginalPath: null,
@@ -1820,76 +1680,10 @@
         }
 
         function updateFocusArchiveCount() {
-            const countEl = document.getElementById('focusArchiveCount');
-            if (!countEl) return;
             const selectedCount = enhancementState.selectedReferenceAssetIds.length;
-            const totalCount = (enhancementState.focusArchiveItems || []).length;
-            const selectedLabel = selectedCount === 1 ? '1 selected' : `${selectedCount} selected`;
-            countEl.textContent = totalCount ? `${selectedLabel} · ${totalCount} total` : selectedLabel;
-        }
-
-        function getFocusArchiveItemByAssetId(assetId) {
-            return (enhancementState.focusArchiveItems || []).find((item) => item.asset_id === assetId) || null;
-        }
-
-        function updateFocusArchivePreview() {
-            const items = enhancementState.focusArchiveItems || [];
-            const index = enhancementState.previewIndex;
-            const item = index >= 0 && index < items.length ? items[index] : null;
-            const modal = document.getElementById('focusArchivePreviewModal');
-            const image = document.getElementById('focusArchivePreviewImage');
-            const meta = document.getElementById('focusArchivePreviewMeta');
-            const counter = document.getElementById('focusArchivePreviewCounter');
-            const openFull = document.getElementById('focusArchivePreviewOpenFull');
-            const prevBtn = document.getElementById('focusArchivePreviewPrev');
-            const nextBtn = document.getElementById('focusArchivePreviewNext');
-
-            if (!modal || !image || !meta || !counter || !openFull || !prevBtn || !nextBtn) return;
-
-            if (!item) {
-                modal.classList.remove('active');
-                enhancementState.previewModalOpen = false;
-                enhancementState.previewIndex = -1;
-                return;
-            }
-
-            const typeLabel = item.asset_type === 'edited_focus' ? 'Edited focus' : 'Raw crop';
-            const sourceLabel = item.source_enhanced_filename || item.source_image_filename || 'Reference image';
-            image.src = item.image_url;
-            image.alt = `${typeLabel} preview`;
-            meta.textContent = `${typeLabel} · ${sourceLabel}`;
-            counter.textContent = `${index + 1} of ${items.length}`;
-            openFull.href = item.image_url;
-            prevBtn.disabled = index <= 0;
-            nextBtn.disabled = index >= items.length - 1;
-            modal.classList.add('active');
-            enhancementState.previewModalOpen = true;
-        }
-
-        function openFocusArchivePreview(assetId) {
-            const items = enhancementState.focusArchiveItems || [];
-            const index = items.findIndex((item) => item.asset_id === assetId);
-            if (index === -1) return;
-            enhancementState.previewIndex = index;
-            updateFocusArchivePreview();
-        }
-
-        function closeFocusArchivePreview() {
-            const modal = document.getElementById('focusArchivePreviewModal');
-            if (modal) {
-                modal.classList.remove('active');
-            }
-            enhancementState.previewModalOpen = false;
-            enhancementState.previewIndex = -1;
-        }
-
-        function stepFocusArchivePreview(direction) {
-            const items = enhancementState.focusArchiveItems || [];
-            if (!items.length || enhancementState.previewIndex < 0) return;
-            const nextIndex = enhancementState.previewIndex + direction;
-            if (nextIndex < 0 || nextIndex >= items.length) return;
-            enhancementState.previewIndex = nextIndex;
-            updateFocusArchivePreview();
+            const totalCount = enhancementState.focusArchiveItems.length;
+            const countEl = document.getElementById('focusArchiveCount');
+            countEl.textContent = `${selectedCount} selected${totalCount ? ` · ${totalCount} saved` : ''}`;
         }
 
         function formatAlternateDate(value) {
@@ -1920,23 +1714,31 @@
                 return;
             }
 
-            list.style.display = 'block';
+            list.style.display = 'grid';
+            list.classList.toggle('scrollable', alternates.length > 5);
             empty.style.display = 'none';
-            list.innerHTML = `
-                <select class="alternate-version-select" id="alternateVersionsSelect" ${enhancementState.isSwitchingAlternate ? 'disabled' : ''}>
-                    ${alternates.map((alt) => {
-                        const kindLabel = alt.kind === 'original' ? 'Original' : 'Enhanced';
-                        const dateLabel = formatAlternateDate(alt.created_at);
-                        const pieces = [kindLabel, alt.label || alt.filename, dateLabel].filter(Boolean);
-                        return `<option value="${escapeHtml(alt.filename)}" ${alt.active ? 'selected' : ''}>${escapeHtml(pieces.join(' · '))}</option>`;
-                    }).join('')}
-                </select>
-            `;
+            list.innerHTML = alternates.map((alt) => {
+                const activeClass = alt.active ? 'active' : '';
+                const metaParts = [
+                    alt.kind === 'original' ? 'Original source' : 'Enhanced alternate',
+                    formatAlternateDate(alt.created_at)
+                ].filter(Boolean);
+                return `
+                    <button
+                        type="button"
+                        class="alternate-version-btn ${activeClass}"
+                        data-filename="${escapeHtml(alt.filename)}"
+                        ${enhancementState.isSwitchingAlternate ? 'disabled' : ''}
+                    >
+                        <span class="alternate-version-label">${escapeHtml(alt.display_label || alt.filename)}</span>
+                        <span class="alternate-version-meta">${escapeHtml(metaParts.join(' · '))}</span>
+                    </button>
+                `;
+            }).join('');
 
-            const select = document.getElementById('alternateVersionsSelect');
-            if (select) {
-                select.addEventListener('change', () => activateAlternateVersion(select.value));
-            }
+            list.querySelectorAll('.alternate-version-btn').forEach((button) => {
+                button.addEventListener('click', () => activateAlternateVersion(button.dataset.filename));
+            });
         }
 
         async function loadAlternatesForCurrentImage() {
@@ -2015,55 +1817,26 @@
 
             empty.style.display = 'none';
             grid.style.display = 'grid';
-            grid.classList.toggle('scrollable', items.length > 6);
             grid.innerHTML = items.map((item) => {
                 const isSelected = enhancementState.selectedReferenceAssetIds.includes(item.asset_id);
                 const typeLabel = item.asset_type === 'edited_focus' ? 'Edited focus' : 'Raw crop';
                 const sourceLabel = item.source_enhanced_filename || item.source_image_filename || '';
                 return `
-                    <div
+                    <button
+                        type="button"
                         class="focus-archive-card ${isSelected ? 'active' : ''}"
                         data-asset-id="${escapeHtml(item.asset_id)}"
                     >
-                        <button
-                            type="button"
-                            class="focus-archive-card-main"
-                            data-action="select"
-                            data-asset-id="${escapeHtml(item.asset_id)}"
-                        >
-                            <img src="${escapeHtml(item.image_url)}" alt="${escapeHtml(typeLabel)}">
-                            <span class="focus-archive-card-type">${escapeHtml(typeLabel)}</span>
-                            <span class="focus-archive-card-meta">${escapeHtml(sourceLabel)}</span>
-                        </button>
-                        <div class="focus-archive-card-actions">
-                            <button
-                                type="button"
-                                class="focus-archive-preview-btn"
-                                data-action="preview"
-                                data-asset-id="${escapeHtml(item.asset_id)}"
-                            >
-                                <i class="fas fa-expand"></i>
-                                Preview
-                            </button>
-                        </div>
-                    </div>
+                        <img src="${escapeHtml(item.image_url)}" alt="${escapeHtml(typeLabel)}">
+                        <span class="focus-archive-card-type">${escapeHtml(typeLabel)}</span>
+                        <span class="focus-archive-card-meta">${escapeHtml(sourceLabel)}</span>
+                    </button>
                 `;
             }).join('');
 
-            grid.querySelectorAll('[data-action="select"]').forEach((button) => {
+            grid.querySelectorAll('.focus-archive-card').forEach((button) => {
                 button.addEventListener('click', () => toggleFocusArchiveSelection(button.dataset.assetId));
             });
-
-            grid.querySelectorAll('[data-action="preview"]').forEach((button) => {
-                button.addEventListener('click', (event) => {
-                    event.stopPropagation();
-                    openFocusArchivePreview(button.dataset.assetId);
-                });
-            });
-
-            if (enhancementState.previewModalOpen) {
-                updateFocusArchivePreview();
-            }
         }
 
         function toggleFocusArchiveSelection(assetId) {
@@ -2260,11 +2033,6 @@
                 showEnhanceStatus('Draw a selection before continuing', 'error');
                 return;
             }
-
-            enhancementState.selectionMode = false;
-            const canvas = document.getElementById('maskCanvas');
-            canvas.classList.remove('active');
-            updateSelectionWidget();
 
             await Promise.all([loadFocusArchive(), loadSavedPresets()]);
             enhancementState.promptModalOpen = true;
@@ -2703,7 +2471,7 @@
                         enhanceBtn.disabled = false;
                         showEnhanceStatus('Enhancement complete!', 'success');
                         cancelSelectionMode(false, true);
-                        await saveEnhancement();
+                        showComparison();
                         return;
                     }
 
@@ -2793,19 +2561,16 @@
                 const data = await response.json();
                 
                 if (data.success) {
-                    showEnhanceStatus('Enhanced image saved as an alternate. Switch to it from Alternates if you want to use it.', 'success');
-                    showNotification('Enhanced image saved as an alternate', 'success');
+                    showEnhanceStatus('Enhanced image saved!', 'success');
+                    showNotification('Enhanced image saved successfully', 'success');
                     await loadFocusArchive();
                     enhancementState.alternateVersions = data.alternates?.alternates || enhancementState.alternateVersions;
                     enhancementState.alternateBaseFilename = data.alternates?.base_image_filename || enhancementState.alternateBaseFilename;
                     
-                    renderAlternateVersions();
-                    enhancementState.currentEnhancedPath = null;
-                    enhancementState.currentEnhancedFilename = null;
-                    enhancementState.currentOriginalPath = null;
-                    enhancementState.currentSourceRunId = null;
-                    enhancementState.lastConfig = null;
-                    enhancementState.lastSelectionMaskCoords = null;
+                    // Update the image in the array and reload
+                    images[currentImageIndex].filename = data.new_filename;
+                    hideComparison();
+                    updateImage();
                 } else {
                     showEnhanceStatus(`Save failed: ${data.error}`, 'error');
                     showNotification('Failed to save enhancement', 'error');
@@ -2814,6 +2579,53 @@
                 console.error('Save enhancement failed:', error);
                 showEnhanceStatus('Save failed', 'error');
                 showNotification('Failed to save enhancement', 'error');
+            }
+        }
+        
+        async function discardEnhancement() {
+            const currentImage = images[currentImageIndex];
+            if (!currentImage || !enhancementState.currentEnhancedFilename) return;
+            
+            showEnhanceStatus('Discarding enhancement...', 'loading');
+            
+            try {
+                const response = await fetch(
+                    `/api/enhance/${postId}/${currentImage.filename}/discard`,
+                    { 
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            enhanced_filename: enhancementState.currentEnhancedFilename
+                        })
+                    }
+                );
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showEnhanceStatus('Enhancement discarded', 'success');
+                    hideComparison();
+                } else {
+                    showEnhanceStatus(`Discard failed: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                console.error('Discard enhancement failed:', error);
+                showEnhanceStatus('Discard failed', 'error');
+            }
+        }
+        
+        function showEnhanceStatus(message, type = 'info') {
+            const statusEl = document.getElementById('enhanceStatus');
+            const statusText = document.getElementById('enhanceStatusText');
+            
+            statusEl.className = 'enhance-status show ' + type;
+            statusText.textContent = message;
+            
+            // Auto-hide after 3 seconds for success/error
+            if (type === 'success' || type === 'error') {
+                setTimeout(() => {
+                    statusEl.classList.remove('show');
+                }, 3000);
             }
         }
         
@@ -2968,45 +2780,10 @@
         document.getElementById('saveCropSelectionBtn').addEventListener('click', saveCurrentCrop);
         document.getElementById('cancelEnhanceSelectionBtn').addEventListener('click', () => cancelSelectionMode(true));
         document.getElementById('runEnhancementBtn').addEventListener('click', runEnhancementFromModal);
-        document.getElementById('backToSelectionBtn').addEventListener('click', () => {
-            closeEnhancePromptModal();
-            enhancementState.selectionMode = true;
-            updateEnhanceControls();
-            initializeMaskCanvas();
-        });
-
-        document.getElementById('focusArchivePreviewClose').addEventListener('click', closeFocusArchivePreview);
-        document.getElementById('focusArchivePreviewPrev').addEventListener('click', () => stepFocusArchivePreview(-1));
-        document.getElementById('focusArchivePreviewNext').addEventListener('click', () => stepFocusArchivePreview(1));
-        document.getElementById('focusArchivePreviewModal').addEventListener('click', (event) => {
-            if (event.target.id === 'focusArchivePreviewModal') {
-                closeFocusArchivePreview();
-            }
-        });
-
-        document.addEventListener('keydown', (event) => {
-            if (enhancementState.previewModalOpen) {
-                if (event.key === 'Escape') {
-                    closeFocusArchivePreview();
-                    return;
-                }
-                if (event.key === 'ArrowLeft') {
-                    stepFocusArchivePreview(-1);
-                    return;
-                }
-                if (event.key === 'ArrowRight') {
-                    stepFocusArchivePreview(1);
-                    return;
-                }
-            }
-
-            if (!enhancementState.promptModalOpen) {
-                return;
-            }
-
-            if (event.key === 'Escape') {
-                closeEnhancePromptModal();
-            }
+        document.getElementById('backToSelectionBtn').addEventListener('click', closeEnhancePromptModal);
+        document.getElementById('cancelEnhancePromptBtn').addEventListener('click', () => cancelSelectionMode(true));
+        document.getElementById('enhancePromptInput').addEventListener('input', (e) => {
+            enhancementState.positivePrompt = e.target.value;
         });
 
         document.querySelectorAll('.enhance-preset-btn').forEach((button) => {
@@ -3029,6 +2806,24 @@
             if (e.key === 'Escape' && enhancementState.selectionMode) {
                 cancelSelectionMode(true);
             }
+        });
+        
+        document.getElementById('saveEnhancementBtn').addEventListener('click', saveEnhancement);
+        document.getElementById('discardEnhancementBtn').addEventListener('click', discardEnhancement);
+        
+        // Toggle buttons for comparison view
+        document.getElementById('toggleOriginal').addEventListener('click', () => {
+            document.getElementById('toggleOriginal').classList.add('active');
+            document.getElementById('toggleEnhanced').classList.remove('active');
+            document.getElementById('originalWrapper').classList.add('active');
+            document.getElementById('enhancedWrapper').classList.remove('active');
+        });
+        
+        document.getElementById('toggleEnhanced').addEventListener('click', () => {
+            document.getElementById('toggleEnhanced').classList.add('active');
+            document.getElementById('toggleOriginal').classList.remove('active');
+            document.getElementById('enhancedWrapper').classList.add('active');
+            document.getElementById('originalWrapper').classList.remove('active');
         });
         
         // Initialize mask canvas

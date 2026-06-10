@@ -1028,7 +1028,7 @@ def build_zo_image_edit_prompt(
 def wait_for_complete_focus_output(
     zo_process: subprocess.Popen,
     focus_output_path: Path,
-    timeout_seconds: float = 600,
+    timeout_seconds: float = 240,
     poll_interval: float = 0.5,
 ) -> None:
     """Wait for Zo to finish and verify the output image can be fully loaded."""
@@ -1296,7 +1296,6 @@ def add_or_update_alternate_version(
     source_run_id: Optional[str] = None,
     prompt_text: str = '',
     created_at: Optional[str] = None,
-    active: Optional[bool] = None,
 ) -> None:
     """Insert or refresh an alternate version entry and mark it active."""
     ensure_image_alternate_metadata(img_entry)
@@ -1316,29 +1315,19 @@ def add_or_update_alternate_version(
             'created_at': created_at,
             'source_run_id': source_run_id,
             'prompt_text': prompt_text,
-            'active': bool(active) if active is not None else True,
         }
         alternates.append(target)
     else:
         target['kind'] = kind
+        target['created_at'] = created_at
         target['source_run_id'] = source_run_id
         target['prompt_text'] = prompt_text
-        target['created_at'] = created_at
 
-    if active is None:
-        img_entry['filename'] = alt_filename
-        img_entry['active_alternate_filename'] = alt_filename
-        for alt in alternates:
-            alt['active'] = alt.get('filename') == alt_filename
-    else:
-        current_active = img_entry.get('active_alternate_filename') or img_entry.get('filename')
-        if not current_active:
-            current_active = img_entry.get('base_image_filename') or canonical_base_filename(alt_filename)
-        img_entry['active_alternate_filename'] = current_active
-        for alt in alternates:
-            alt['active'] = alt.get('filename') == current_active
+    for alt in alternates:
+        alt['active'] = alt.get('filename') == alt_filename
 
-    img_entry['alternate_versions'] = alternates
+    img_entry['filename'] = alt_filename
+    img_entry['active_alternate_filename'] = alt_filename
 
 
 def build_alternate_payload(post_id: str, img_entry: dict) -> dict:
@@ -5337,7 +5326,6 @@ def save_enhanced_image(post_id, filename):
         if img_entry:
             ensure_image_alternate_metadata(img_entry)
             base_filename = img_entry.get('base_image_filename') or canonical_base_filename(filename)
-            current_active_filename = img_entry.get('active_alternate_filename') or img_entry.get('filename') or base_filename
             add_or_update_alternate_version(
                 img_entry,
                 enhanced_filename,
@@ -5345,46 +5333,40 @@ def save_enhanced_image(post_id, filename):
                 source_run_id=source_run_id,
                 prompt_text=prompt_text or config.get('prompt', ''),
                 created_at=datetime.now().isoformat(),
-                active=False,
             )
-            img_entry['filename'] = current_active_filename
-            img_entry['active_alternate_filename'] = current_active_filename
-            img_entry['enhanced'] = current_active_filename != base_filename
+            img_entry['enhanced'] = True
             img_entry['enhancement_date'] = datetime.now().isoformat()
             img_entry['original_filename'] = base_filename
             img_entry['base_image_filename'] = base_filename
-            img_entry['enhanced_filename'] = current_active_filename if current_active_filename != base_filename else None
+            img_entry['enhanced_filename'] = enhanced_filename
             img_entry['enhancement_config'] = config
-            current_active_path = FileOperationsManager.get_post_extracted_dir(post_id) / current_active_filename
-            if current_active_path.exists():
-                img_entry['file_info'] = {
-                    'filename': current_active_filename,
-                    'path': current_active_filename,
-                    'size': current_active_path.stat().st_size,
-                    'modified': datetime.fromtimestamp(current_active_path.stat().st_mtime).isoformat()
-                }
+            img_entry['file_info'] = {
+                'filename': enhanced_filename,
+                'path': enhanced_filename,
+                'size': enhanced_path.stat().st_size,
+                'modified': datetime.fromtimestamp(enhanced_path.stat().st_mtime).isoformat()
+            }
         else:
             # Image not found in metadata - add enhanced image as new entry
             base_filename = canonical_base_filename(filename)
-            base_path = FileOperationsManager.get_post_extracted_dir(post_id) / base_filename
             file_info = {
-                'filename': base_filename,
-                'path': base_filename,
-                'size': base_path.stat().st_size if base_path.exists() else enhanced_path.stat().st_size,
-                'modified': datetime.fromtimestamp((base_path.stat().st_mtime if base_path.exists() else enhanced_path.stat().st_mtime)).isoformat()
+                'filename': enhanced_filename,
+                'path': enhanced_filename,
+                'size': enhanced_path.stat().st_size,
+                'modified': datetime.fromtimestamp(enhanced_path.stat().st_mtime).isoformat()
             }
             img_entry = {
-                'filename': base_filename,
+                'filename': enhanced_filename,
                 'visible': True,
                 'deleted': False,
                 'custom_order': len(images),
                 'file_info': file_info,
-                'enhanced': False,
+                'enhanced': True,
                 'enhancement_date': datetime.now().isoformat(),
                 'original_filename': base_filename,
                 'base_image_filename': base_filename,
-                'active_alternate_filename': base_filename,
-                'enhanced_filename': None,
+                'active_alternate_filename': enhanced_filename,
+                'enhanced_filename': enhanced_filename,
                 'enhancement_config': config,
                 'alternate_versions': [
                     {
@@ -5393,7 +5375,7 @@ def save_enhanced_image(post_id, filename):
                         'created_at': datetime.now().isoformat(),
                         'source_run_id': None,
                         'prompt_text': '',
-                        'active': True,
+                        'active': False,
                     },
                     {
                         'filename': enhanced_filename,
@@ -5401,7 +5383,7 @@ def save_enhanced_image(post_id, filename):
                         'created_at': datetime.now().isoformat(),
                         'source_run_id': source_run_id,
                         'prompt_text': prompt_text or config.get('prompt', ''),
-                        'active': False,
+                        'active': True,
                     }
                 ]
             }

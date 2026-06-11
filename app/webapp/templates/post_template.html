@@ -289,14 +289,10 @@
             border-radius: 12px;
             box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6),
                         inset 0 1px 0 rgba(212, 175, 55, 0.1);
-            opacity: 0;
+            opacity: 1;
             transition: opacity 0.3s ease;
             z-index: 99;
             min-width: 180px;
-        }
-
-        body:hover .playlist-widget {
-            opacity: 1;
         }
 
         .playlist-selector-widget {
@@ -364,7 +360,8 @@
         .enhance-selection-widget {
             top: 370px;
             display: none;
-            min-width: 240px;
+            width: 180px;
+            min-width: 180px;
         }
 
         .enhance-selection-widget.active {
@@ -372,8 +369,13 @@
         }
 
         .alternate-versions-widget {
+            top: 370px;
+            width: 180px;
+            min-width: 180px;
+        }
+
+        .enhance-selection-widget.active ~ .alternate-versions-widget {
             top: 610px;
-            min-width: 240px;
         }
 
         .alternate-versions-header {
@@ -396,53 +398,91 @@
             font-weight: 600;
         }
 
-        .alternate-versions-list {
-            display: grid;
-            gap: 0.45rem;
-        }
-
-        .alternate-versions-list.scrollable {
-            max-height: 320px;
-            overflow-y: auto;
-            padding-right: 0.2rem;
-        }
-
-        .alternate-version-btn {
+        .alternate-selector-btn {
             width: 100%;
-            padding: 0.55rem 0.65rem;
+            padding: 0.55rem 0.75rem;
+            background: rgba(155, 89, 182, 0.12);
+            border: 1px solid rgba(155, 89, 182, 0.38);
+            color: #f3dbff;
+            font-weight: 600;
             border-radius: 8px;
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            background: rgba(255, 255, 255, 0.04);
-            color: #f1f1f1;
-            text-align: left;
             cursor: pointer;
             transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+            font-size: 0.8rem;
         }
 
-        .alternate-version-btn:hover:not(:disabled),
-        .alternate-version-btn.active {
-            border-color: rgba(155, 89, 182, 0.7);
-            background: rgba(155, 89, 182, 0.18);
+        .alternate-selector-btn:hover:not(:disabled) {
+            background: rgba(155, 89, 182, 0.2);
+            border-color: rgba(180, 110, 214, 0.7);
             box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
         }
 
-        .alternate-version-btn:disabled {
-            opacity: 0.55;
-            cursor: wait;
+        .alternate-selector-btn:disabled {
+            opacity: 0.6;
+            cursor: default;
         }
 
-        .alternate-version-label {
+        .alternate-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            margin-top: 0.5rem;
+            background: rgba(12, 7, 16, 0.98);
+            border: 1px solid rgba(155, 89, 182, 0.38);
+            border-radius: 10px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8);
+            max-height: 320px;
+            overflow-y: auto;
+            z-index: 1001;
+            display: none;
+        }
+
+        .alternate-versions-widget.dropdown-active {
+            z-index: 1000;
+        }
+
+        .alternate-dropdown.show {
             display: block;
+        }
+
+        .alternate-option {
+            padding: 0.65rem 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-bottom: 1px solid rgba(155, 89, 182, 0.14);
+            display: flex;
+            flex-direction: column;
+            gap: 0.2rem;
+            color: #fff;
+            font-size: 0.8rem;
+        }
+
+        .alternate-option:last-child {
+            border-bottom: none;
+        }
+
+        .alternate-option:hover {
+            background: rgba(155, 89, 182, 0.18);
+        }
+
+        .alternate-option.selected {
+            background: rgba(155, 89, 182, 0.26);
+        }
+
+        .alternate-option-label {
             font-size: 0.76rem;
             font-weight: 700;
             color: #ffffff;
         }
 
-        .alternate-version-meta {
-            display: block;
-            margin-top: 0.2rem;
+        .alternate-option-meta {
             font-size: 0.68rem;
-            color: #b9b9b9;
+            color: #d0bddc;
             line-height: 1.35;
         }
 
@@ -450,6 +490,7 @@
             color: #9d9d9d;
             font-size: 0.74rem;
             line-height: 1.4;
+            margin-top: 0.45rem;
         }
 
         .enhance-selection-title {
@@ -526,6 +567,7 @@
             justify-content: center;
             z-index: 2000;
             padding: 1.5rem;
+            overflow-y: auto;
         }
 
         .enhance-modal-backdrop.active {
@@ -534,11 +576,13 @@
 
         .enhance-modal {
             width: min(640px, 100%);
+            max-height: calc(100vh - 3rem);
             background: rgba(15, 15, 15, 0.98);
             border: 1px solid rgba(155, 89, 182, 0.35);
             border-radius: 18px;
             box-shadow: 0 24px 80px rgba(0, 0, 0, 0.65);
             padding: 1.5rem;
+            overflow-y: auto;
         }
 
         .enhance-modal-header {
@@ -1307,10 +1351,16 @@
                 <div class="alternate-versions-title">Alternates</div>
                 <div class="alternate-versions-count" id="alternateVersionsCount">1 saved</div>
             </div>
+            <div style="position: relative;">
+                <button class="alternate-selector-btn" id="alternateSelectorBtn" disabled>
+                    <span id="selectedAlternateName">No alternates yet</span>
+                    <i class="fas fa-chevron-down"></i>
+                </button>
+                <div class="alternate-dropdown" id="alternateDropdown"></div>
+            </div>
             <div class="alternate-versions-empty" id="alternateVersionsEmpty">
                 No saved alternates for this image yet.
             </div>
-            <div class="alternate-versions-list" id="alternateVersionsList"></div>
         </div>
 
         <!-- Comparison View (hidden by default) -->
@@ -1612,7 +1662,7 @@
             }
         });
         
-        // Check URL parameters for direct image navigation
+        // Apply initial image from URL before first render
         const urlParams = new URLSearchParams(window.location.search);
         const imageParam = urlParams.get('image');
         if (imageParam !== null) {
@@ -1641,6 +1691,38 @@
             if (maskDrawing.ctx && maskDrawing.canvas) {
                 maskDrawing.ctx.clearRect(0, 0, maskDrawing.canvas.width, maskDrawing.canvas.height);
             }
+            updateSelectionWidget();
+        }
+
+        function renderStoredSelectionRectangle() {
+            if (!maskDrawing.ctx || !maskDrawing.canvas || !enhancementState.maskCoords) {
+                return;
+            }
+
+            const { x1, y1, x2, y2 } = enhancementState.maskCoords;
+            const left = Math.min(x1, x2) * maskDrawing.canvas.width;
+            const top = Math.min(y1, y2) * maskDrawing.canvas.height;
+            const width = Math.abs(x2 - x1) * maskDrawing.canvas.width;
+            const height = Math.abs(y2 - y1) * maskDrawing.canvas.height;
+
+            maskDrawing.ctx.clearRect(0, 0, maskDrawing.canvas.width, maskDrawing.canvas.height);
+            maskDrawing.ctx.strokeStyle = '#9b59b6';
+            maskDrawing.ctx.lineWidth = 3;
+            maskDrawing.ctx.fillStyle = 'rgba(155, 89, 182, 0.2)';
+            maskDrawing.ctx.fillRect(left, top, width, height);
+            maskDrawing.ctx.strokeRect(left, top, width, height);
+        }
+
+        function setSelectionWidgetVisibility(isVisible) {
+            const canvas = document.getElementById('maskCanvas');
+            enhancementState.selectionMode = isVisible;
+            canvas.classList.toggle('active', isVisible);
+
+            if (isVisible) {
+                updateCanvasSize();
+                renderStoredSelectionRectangle();
+            }
+
             updateSelectionWidget();
         }
 
@@ -1700,44 +1782,50 @@
         }
 
         function renderAlternateVersions() {
-            const list = document.getElementById('alternateVersionsList');
             const empty = document.getElementById('alternateVersionsEmpty');
             const count = document.getElementById('alternateVersionsCount');
+            const dropdown = document.getElementById('alternateDropdown');
+            const button = document.getElementById('alternateSelectorBtn');
+            const selectedName = document.getElementById('selectedAlternateName');
+            const widget = document.getElementById('alternateVersionsWidget');
             const alternates = enhancementState.alternateVersions || [];
+            const activeAlternate = alternates.find((alt) => alt.active) || alternates[0] || null;
 
             count.textContent = `${alternates.length || 1} saved`;
 
             if (!alternates.length) {
-                list.innerHTML = '';
-                list.style.display = 'none';
+                dropdown.innerHTML = '';
+                dropdown.classList.remove('show');
+                widget.classList.remove('dropdown-active');
+                button.disabled = true;
+                selectedName.textContent = 'No alternates yet';
                 empty.style.display = 'block';
                 return;
             }
 
-            list.style.display = 'grid';
-            list.classList.toggle('scrollable', alternates.length > 5);
+            button.disabled = enhancementState.isSwitchingAlternate;
+            selectedName.textContent = activeAlternate?.display_label || activeAlternate?.filename || 'Select alternate';
             empty.style.display = 'none';
-            list.innerHTML = alternates.map((alt) => {
-                const activeClass = alt.active ? 'active' : '';
+            dropdown.innerHTML = alternates.map((alt) => {
+                const selectedClass = alt.active ? 'selected' : '';
                 const metaParts = [
                     alt.kind === 'original' ? 'Original source' : 'Enhanced alternate',
                     formatAlternateDate(alt.created_at)
                 ].filter(Boolean);
                 return `
-                    <button
-                        type="button"
-                        class="alternate-version-btn ${activeClass}"
-                        data-filename="${escapeHtml(alt.filename)}"
-                        ${enhancementState.isSwitchingAlternate ? 'disabled' : ''}
-                    >
-                        <span class="alternate-version-label">${escapeHtml(alt.display_label || alt.filename)}</span>
-                        <span class="alternate-version-meta">${escapeHtml(metaParts.join(' · '))}</span>
-                    </button>
+                    <div class="alternate-option ${selectedClass}" data-filename="${escapeHtml(alt.filename)}">
+                        <span class="alternate-option-label">${escapeHtml(alt.display_label || alt.filename)}</span>
+                        <span class="alternate-option-meta">${escapeHtml(metaParts.join(' · '))}</span>
+                    </div>
                 `;
             }).join('');
 
-            list.querySelectorAll('.alternate-version-btn').forEach((button) => {
-                button.addEventListener('click', () => activateAlternateVersion(button.dataset.filename));
+            dropdown.querySelectorAll('.alternate-option').forEach((option) => {
+                option.addEventListener('click', () => {
+                    dropdown.classList.remove('show');
+                    widget.classList.remove('dropdown-active');
+                    activateAlternateVersion(option.dataset.filename);
+                });
             });
         }
 
@@ -2035,6 +2123,7 @@
             }
 
             await Promise.all([loadFocusArchive(), loadSavedPresets()]);
+            setSelectionWidgetVisibility(false);
             enhancementState.promptModalOpen = true;
             document.getElementById('enhancePromptModal').classList.add('active');
             const promptInput = document.getElementById('enhancePromptInput');
@@ -2044,10 +2133,13 @@
             document.body.style.overflow = 'hidden';
         }
 
-        function closeEnhancePromptModal() {
+        function closeEnhancePromptModal(restoreSelection = true) {
             enhancementState.promptModalOpen = false;
             document.getElementById('enhancePromptModal').classList.remove('active');
             document.body.style.overflow = '';
+            if (restoreSelection && enhancementState.maskCoords && !enhancementState.isProcessing) {
+                setSelectionWidgetVisibility(true);
+            }
         }
 
         function runEnhancementFromModal() {
@@ -2061,19 +2153,15 @@
             }
 
             enhancementState.positivePrompt = promptValue;
-            closeEnhancePromptModal();
+            closeEnhancePromptModal(false);
             enhanceImage();
         }
 
         function enterSelectionMode() {
             if (enhancementState.isProcessing) return;
 
-            enhancementState.selectionMode = true;
-            const canvas = document.getElementById('maskCanvas');
-            canvas.classList.add('active');
-            updateCanvasSize();
+            setSelectionWidgetVisibility(true);
             clearSelectionRectangle();
-            updateSelectionWidget();
             showNotification('Draw a rectangle around the area to enhance', 'success');
         }
 
@@ -2130,12 +2218,9 @@
         }
 
         function cancelSelectionMode(showMessage = false, preserveSelectionSnapshot = false) {
-            enhancementState.selectionMode = false;
             closeEnhancePromptModal();
-            const canvas = document.getElementById('maskCanvas');
-            canvas.classList.remove('active');
+            setSelectionWidgetVisibility(false);
             clearSelectionRectangle(preserveSelectionSnapshot);
-            updateSelectionWidget();
             if (showMessage) {
                 showNotification('Image enhancement cancelled', 'success');
             }
@@ -2170,7 +2255,7 @@
             
             // Update URL parameter without page reload
             const newUrl = new URL(window.location);
-            newUrl.searchParams.set('image', currentImageIndex);
+            newUrl.searchParams.set('image', currentImage.filename);
             window.history.replaceState({}, '', newUrl);
 
             loadAlternatesForCurrentImage();
@@ -2675,6 +2760,10 @@
                 viewerRect: {left: viewerRect.left, top: viewerRect.top},
                 offset: {left: offsetLeft, top: offsetTop}
             });
+
+            if (enhancementState.selectionMode && enhancementState.maskCoords) {
+                renderStoredSelectionRectangle();
+            }
         }
         
         function startDrawingMask(e) {
@@ -2844,6 +2933,15 @@
             dropdown.classList.toggle('show');
             widget.classList.toggle('dropdown-active', dropdown.classList.contains('show'));
         });
+
+        document.getElementById('alternateSelectorBtn').addEventListener('click', () => {
+            const dropdown = document.getElementById('alternateDropdown');
+            const widget = document.getElementById('alternateVersionsWidget');
+            const button = document.getElementById('alternateSelectorBtn');
+            if (button.disabled) return;
+            dropdown.classList.toggle('show');
+            widget.classList.toggle('dropdown-active', dropdown.classList.contains('show'));
+        });
         
         document.getElementById('addToPlaylistBtn').addEventListener('click', addCurrentImageToPlaylist);
         
@@ -2854,6 +2952,14 @@
             if (btn && !btn.contains(e.target) && dropdown && !dropdown.contains(e.target)) {
                 dropdown.classList.remove('show');
                 widget.classList.remove('dropdown-active');
+            }
+
+            const alternateDropdown = document.getElementById('alternateDropdown');
+            const alternateBtn = document.getElementById('alternateSelectorBtn');
+            const alternateWidget = document.getElementById('alternateVersionsWidget');
+            if (alternateBtn && !alternateBtn.contains(e.target) && alternateDropdown && !alternateDropdown.contains(e.target)) {
+                alternateDropdown.classList.remove('show');
+                alternateWidget.classList.remove('dropdown-active');
             }
         });
         
